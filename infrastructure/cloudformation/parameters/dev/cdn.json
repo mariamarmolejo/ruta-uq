@@ -1,0 +1,8 @@
+[
+  { "ParameterKey": "Project",                 "ParameterValue": "rutauq" },
+  { "ParameterKey": "Environment",             "ParameterValue": "dev" },
+  { "ParameterKey": "PriceClass",               "ParameterValue": "PriceClass_100" },
+  { "ParameterKey": "DomainName",               "ParameterValue": "" },
+  { "ParameterKey": "AcmCertificateArn",        "ParameterValue": "" },
+  { "ParameterKey": "CreateApiDistribution",    "ParameterValue": "true" }
+]

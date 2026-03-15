@@ -1,0 +1,366 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  RutaUQ - Frontend CDN
+  Private S3 bucket for Next.js static export + CloudFront distribution.
+  Uses Origin Access Control (OAC) — the modern replacement for OAI — so
+  the bucket is never public; only CloudFront can read from it.
+
+  After deploying this stack, push a frontend build with:
+    npm run build                                    # requires output:'export' in next.config.js
+    aws s3 sync ./out s3://<BucketName> --delete
+    aws cloudfront create-invalidation \
+      --distribution-id <DistributionId> --paths "/*"
+
+  When CreateApiDistribution is true, deploy the ECS stack first (CDN imports
+  AlbDnsName from ECS). Set CreateApiDistribution to false to deploy CDN without
+  the API distribution.
+  Optional: supply DomainName + AcmCertificateArn for a custom domain.
+
+# =============================================================================
+# Parameters
+# =============================================================================
+
+Parameters:
+
+  Project:
+    Type: String
+    Default: rutauq
+
+  Environment:
+    Type: String
+    AllowedValues: [dev, staging, prod]
+
+  PriceClass:
+    Type: String
+    Default: PriceClass_100
+    AllowedValues:
+      - PriceClass_100   # US, Canada, Europe       — cheapest
+      - PriceClass_200   # + Asia, Middle East, Africa
+      - PriceClass_All   # All edge locations        — best latency worldwide
+    Description: >
+      Controls which CloudFront edge locations serve your content.
+      PriceClass_100 covers all of North/South America and Europe —
+      sufficient for a Colombian university app.
+
+  DomainName:
+    Type: String
+    Default: ''
+    Description: >
+      Optional custom domain (e.g. app.rutauq.com).
+      Leave empty to use the default *.cloudfront.net domain.
+
+  AcmCertificateArn:
+    Type: String
+    Default: ''
+    Description: >
+      ARN of an ACM certificate in us-east-1 for the custom domain.
+      Required only when DomainName is set.
+      Create with: aws acm request-certificate --domain-name app.rutauq.com
+        --validation-method DNS --region us-east-1
+
+  CreateApiDistribution:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: >
+      When true, create a CloudFront distribution for the backend API, importing
+      the ALB DNS name from the ECS stack. Requires the ECS stack to be deployed first.
+      Set to false if the ECS stack does not exist yet.
+
+# =============================================================================
+# Conditions
+# =============================================================================
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, '']]
+  HasAlb:          !Equals [!Ref CreateApiDistribution, 'true']
+
+# =============================================================================
+# Resources
+# =============================================================================
+
+Resources:
+
+  # --------------------------------------------------------------------------
+  # S3 Bucket
+  # Stores the compiled Next.js static export.
+  # Versioning enabled — `aws s3 sync --delete` + rollback by restoring version.
+  # --------------------------------------------------------------------------
+
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    # Delete bucket when stack is deleted. Bucket must be empty for deletion to succeed
+    # (e.g. aws s3 rm s3://BucketName --recursive; with versioning, delete all versions first).
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Sub ${Project}-frontend-${Environment}-${AWS::AccountId}
+      # No public access — CloudFront is the only allowed reader via OAC
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-frontend-${Environment}
+        - Key: Environment
+          Value: !Ref Environment
+
+  # --------------------------------------------------------------------------
+  # Origin Access Control (OAC)
+  # Replaces the legacy Origin Access Identity (OAI).
+  # Signs every CloudFront → S3 request with SigV4 so the bucket can verify
+  # the request came from this specific distribution.
+  # --------------------------------------------------------------------------
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${Project}-${Environment}-oac
+        Description: !Sub OAC for ${Project}-${Environment} frontend bucket
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # --------------------------------------------------------------------------
+  # CloudFront Function — SPA path rewriting
+  # Next.js static export produces one index.html per route
+  # (e.g. /reset-password/index.html, /trips/index.html).
+  # CloudFront's DefaultRootObject only rewrites "/"; sub-paths need a
+  # viewer-request function that appends /index.html so S3 serves the
+  # right file instead of returning a 403/404 that falls back to the home page.
+  # --------------------------------------------------------------------------
+
+  SpaRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub ${Project}-${Environment}-spa-rewrite
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrites directory-style paths to /index.html for Next.js static export
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          // Root path → index.html (also handled by DefaultRootObject, belt+suspenders)
+          if (uri === '/') {
+            request.uri = '/index.html';
+          // Paths with no file extension → Next.js generates page.html (trailingSlash: false)
+          } else if (!uri.includes('.')) {
+            request.uri = uri + '.html';
+          }
+          return request;
+        }
+
+  # --------------------------------------------------------------------------
+  # CloudFront Distribution
+  # --------------------------------------------------------------------------
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub ${Project}-${Environment} frontend
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: !Ref PriceClass
+
+        Origins:
+          - Id: S3Origin
+            # Use the regional domain to avoid redirect loops during bucket creation
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            S3OriginConfig:
+              # Must be empty string when using OAC (not OAI)
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods:  [GET, HEAD]
+          # AWS managed policy: CachingOptimized
+          # TTL: min 1s, default 86400s (1 day), max 31536000s (1 year)
+          # Compresses responses automatically
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          # Rewrite /reset-password → /reset-password/index.html etc. at the edge
+          # so Next.js static-export pages are served directly from S3 instead of
+          # falling back to the home-page index.html via the custom error response.
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRewriteFunction.FunctionARN
+
+        # SPA routing fix:
+        # When a user navigates directly to /trips/123, S3 returns 403 (key not
+        # found). CloudFront catches 403 and 404 and serves index.html instead,
+        # letting the Next.js router handle the path client-side.
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+
+        # Custom domain (optional)
+        Aliases: !If
+          - HasCustomDomain
+          - [!Ref DomainName]
+          - !Ref AWS::NoValue
+
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            MinimumProtocolVersion: TLSv1.2_2021
+            SslSupportMethod: sni-only
+          - CloudFrontDefaultCertificate: true
+
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-cdn
+        - Key: Environment
+          Value: !Ref Environment
+
+  # --------------------------------------------------------------------------
+  # S3 Bucket Policy
+  # Grants CloudFront OAC read access. The Condition ties the permission to
+  # this specific distribution — no other CloudFront distribution can read.
+  # --------------------------------------------------------------------------
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${WebsiteBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub
+                  - arn:aws:cloudfront::${AWS::AccountId}:distribution/${DistId}
+                  - DistId: !Ref Distribution
+
+  # --------------------------------------------------------------------------
+  # API CloudFront Distribution  (when CreateApiDistribution is true)
+  # Imports ALB DNS from ECS stack — deploy ECS before CDN when using this.
+  # CloudFront terminates HTTPS; traffic to the ALB travels over HTTP on
+  # AWS's internal network and never touches the public internet.
+  # --------------------------------------------------------------------------
+
+  ApiDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: HasAlb
+    Properties:
+      DistributionConfig:
+        Comment: !Sub ${Project}-${Environment} backend API
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: !Ref PriceClass
+
+        Origins:
+          - Id: AlbOrigin
+            DomainName:
+              Fn::ImportValue: !Sub ${Project}-${Environment}-AlbDnsName
+            CustomOriginConfig:
+              HTTPPort: 80
+              OriginProtocolPolicy: http-only   # CloudFront → ALB over HTTP (internal)
+
+        DefaultCacheBehavior:
+          TargetOriginId: AlbOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          # All methods — APIs need POST, PUT, PATCH, DELETE
+          AllowedMethods: [DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT]
+          CachedMethods:  [GET, HEAD, OPTIONS]
+          Compress: true
+          # Forward everything to the ALB: all headers (incl. Authorization),
+          # all query strings, all cookies. TTL=0 disables caching entirely.
+          ForwardedValues:
+            QueryString: true
+            Headers:
+              - '*'
+            Cookies:
+              Forward: all
+          DefaultTTL: 0
+          MinTTL: 0
+          MaxTTL: 0
+
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-api-cdn
+        - Key: Environment
+          Value: !Ref Environment
+
+# =============================================================================
+# Outputs  (exported for cross-stack imports)
+# =============================================================================
+
+Outputs:
+
+  FrontendUrl:
+    Value: !Sub https://${Distribution.DomainName}
+    Description: >
+      CloudFront URL for the frontend. Set this as CORS_ALLOWED_ORIGINS in the
+      ECS stack (update ecs parameters/dev/ecs.json → FrontendUrl) then redeploy.
+    Export:
+      Name: !Sub ${Project}-${Environment}-FrontendUrl
+
+  CloudFrontDomain:
+    Value: !GetAtt Distribution.DomainName
+    Description: Raw *.cloudfront.net domain name.
+    Export:
+      Name: !Sub ${Project}-${Environment}-CloudFrontDomain
+
+  DistributionId:
+    Value: !Ref Distribution
+    Description: >
+      CloudFront distribution ID. Use this to invalidate the cache after a
+      new frontend deploy:
+        aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
+    Export:
+      Name: !Sub ${Project}-${Environment}-DistributionId
+
+  BucketName:
+    Value: !Ref WebsiteBucket
+    Description: >
+      S3 bucket name. Push a new frontend build with:
+        aws s3 sync ./out s3://<BucketName> --delete
+    Export:
+      Name: !Sub ${Project}-${Environment}-FrontendBucketName
+
+  BucketArn:
+    Value: !GetAtt WebsiteBucket.Arn
+    Export:
+      Name: !Sub ${Project}-${Environment}-FrontendBucketArn
+
+  ApiHttpsUrl:
+    Condition: HasAlb
+    Value: !Sub https://${ApiDistribution.DomainName}/api/v1
+    Description: >
+      HTTPS API URL via CloudFront. Use this as NEXT_PUBLIC_API_URL in
+      .env.production, then rebuild and redeploy the frontend.
+    Export:
+      Name: !Sub ${Project}-${Environment}-ApiHttpsUrl
+
+  ApiCloudFrontDomain:
+    Condition: HasAlb
+    Value: !GetAtt ApiDistribution.DomainName
+    Description: Raw *.cloudfront.net domain for the API distribution.
+    Export:
+      Name: !Sub ${Project}-${Environment}-ApiCloudfrontDomain

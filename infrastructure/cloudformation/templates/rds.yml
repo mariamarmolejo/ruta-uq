@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  RutaUQ - RDS PostgreSQL 16
+  Encrypted, gp3 storage with autoscaling, Enhanced Monitoring, Performance
+  Insights. Password read from SSM Parameter Store SecureString — never stored
+  in plaintext in this template or the CloudFormation console.
+  Depends on: networking stack (imports DbSubnetGroupName + RdsSgId).
+
+# =============================================================================
+# Parameters
+# =============================================================================
+
+Parameters:
+
+  Project:
+    Type: String
+    Default: rutauq
+
+  Environment:
+    Type: String
+    AllowedValues: [dev, staging, prod]
+
+  DbName:
+    Type: String
+    Default: rutauq_db
+
+  DbUsername:
+    Type: String
+    Default: rutauq_user
+
+  DbPasswordSsmPath:
+    Type: String
+    Default: /rutauq/dev/db-password
+    Description: >
+      SSM Parameter Store path of type SecureString that holds the master
+      password. Create it before deploying this stack:
+        aws ssm put-parameter \
+          --name /rutauq/dev/db-password \
+          --value "YOUR_PASSWORD" \
+          --type SecureString
+
+  DbInstanceClass:
+    Type: String
+    Default: db.t3.micro
+    Description: db.t3.micro is free-tier eligible.
+
+  DbAllocatedStorage:
+    Type: Number
+    Default: 20
+    Description: Initial storage in GB.
+
+  DbMaxAllocatedStorage:
+    Type: Number
+    Default: 100
+    Description: Maximum storage for autoscaling (must be >= DbAllocatedStorage).
+
+  MultiAz:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable standby replica for automatic failover (use true in prod).
+
+  BackupRetentionDays:
+    Type: Number
+    Default: 7
+    MinValue: 0
+    MaxValue: 35
+
+  DeletionProtection:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Set true in prod to prevent accidental stack deletion.
+
+# =============================================================================
+# Conditions
+# =============================================================================
+
+Conditions:
+  IsMultiAz:            !Equals [!Ref MultiAz, 'true']
+  HasDeletionProtection: !Equals [!Ref DeletionProtection, 'true']
+
+# =============================================================================
+# Resources
+# =============================================================================
+
+Resources:
+
+  # --------------------------------------------------------------------------
+  # IAM Role for Enhanced Monitoring
+  # Publishes OS-level metrics (CPU, memory, disk I/O) to CloudWatch Logs.
+  # --------------------------------------------------------------------------
+
+  MonitoringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Project}-${Environment}-rds-monitoring
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: monitoring.rds.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-rds-monitoring
+
+  # --------------------------------------------------------------------------
+  # Parameter Group
+  # Custom group so settings can be tuned without recreating the instance.
+  # --------------------------------------------------------------------------
+
+  ParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: !Sub ${Project}-${Environment} PostgreSQL 16
+      Family: postgres16
+      Parameters:
+        # Force all client connections to use SSL/TLS
+        rds.force_ssl: '1'
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-pg16
+
+  # --------------------------------------------------------------------------
+  # RDS Instance
+  # --------------------------------------------------------------------------
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    # Dev: delete without snapshot on stack destroy.
+    # Prod: change to Snapshot so a final backup is taken before deletion.
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      DBInstanceIdentifier: !Sub ${Project}-${Environment}
+
+      # Engine
+      Engine: postgres
+      EngineVersion: '16'
+      DBInstanceClass: !Ref DbInstanceClass
+      DBParameterGroupName: !Ref ParameterGroup
+
+      # Storage — gp3 is faster and cheaper than gp2
+      AllocatedStorage: !Ref DbAllocatedStorage
+      MaxAllocatedStorage: !Ref DbMaxAllocatedStorage
+      StorageType: gp3
+      StorageEncrypted: true
+
+      # Credentials
+      DBName: !Ref DbName
+      MasterUsername: !Ref DbUsername
+      # Dynamic reference — password is never stored in CloudFormation state.
+      # Requires the SSM parameter to exist before deploying this stack.
+      MasterUserPassword: !Sub '{{resolve:ssm-secure:${DbPasswordSsmPath}}}'
+
+      # Network — isolated DB subnet tier, no public access
+      DBSubnetGroupName:
+        Fn::ImportValue: !Sub ${Project}-${Environment}-DbSubnetGroupName
+      VPCSecurityGroups:
+        - Fn::ImportValue: !Sub ${Project}-${Environment}-RdsSgId
+      PubliclyAccessible: false
+
+      # Availability
+      MultiAZ: !If [IsMultiAz, true, false]
+
+      # Backups
+      BackupRetentionPeriod: !Ref BackupRetentionDays
+      PreferredBackupWindow: 03:00-04:00
+      PreferredMaintenanceWindow: Mon:04:00-Mon:05:00
+
+      # Monitoring
+      EnablePerformanceInsights: true
+      MonitoringInterval: 60
+      MonitoringRoleArn: !GetAtt MonitoringRole.Arn
+
+      # Lifecycle
+      DeletionProtection: !If [HasDeletionProtection, true, false]
+
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}
+        - Key: Environment
+          Value: !Ref Environment
+
+# =============================================================================
+# Outputs  (exported for cross-stack imports)
+# =============================================================================
+
+Outputs:
+
+  DbEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+    Description: RDS hostname (consumed by ECS stack for SPRING_DATASOURCE_URL).
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbEndpoint
+
+  DbPort:
+    Value: !GetAtt Database.Endpoint.Port
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbPort
+
+  DbName:
+    Value: !Ref DbName
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbName
+
+  DbUrl:
+    Value: !Sub
+      - jdbc:postgresql://${Host}:${Port}/${Name}
+      - Host: !GetAtt Database.Endpoint.Address
+        Port: !GetAtt Database.Endpoint.Port
+        Name: !Ref DbName
+    Description: Full JDBC URL for Spring Boot's SPRING_DATASOURCE_URL.
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbUrl
+
+  DbIdentifier:
+    Value: !Ref Database
+    Description: RDS instance identifier — used by the monitoring stack for alarms.
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbIdentifier

@@ -1,0 +1,13 @@
+[
+  { "ParameterKey": "Project",              "ParameterValue": "rutauq" },
+  { "ParameterKey": "Environment",          "ParameterValue": "dev" },
+  { "ParameterKey": "DbName",               "ParameterValue": "rutauq_db" },
+  { "ParameterKey": "DbUsername",           "ParameterValue": "rutauq_user" },
+  { "ParameterKey": "DbPasswordSsmPath",    "ParameterValue": "/rutauq/dev/db-password" },
+  { "ParameterKey": "DbInstanceClass",      "ParameterValue": "db.t3.micro" },
+  { "ParameterKey": "DbAllocatedStorage",   "ParameterValue": "20" },
+  { "ParameterKey": "DbMaxAllocatedStorage","ParameterValue": "100" },
+  { "ParameterKey": "MultiAz",              "ParameterValue": "false" },
+  { "ParameterKey": "BackupRetentionDays",  "ParameterValue": "0" },
+  { "ParameterKey": "DeletionProtection",   "ParameterValue": "false" }
+]

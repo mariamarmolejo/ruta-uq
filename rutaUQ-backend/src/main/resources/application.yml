@@ -1,0 +1,142 @@
+spring:
+  application:
+    name: rutauq-backend
+
+  # Active profile is set via SPRING_PROFILES_ACTIVE environment variable.
+  # ECS injects it; locally it defaults to 'local'.
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  # ---- Database --------------------------------------------------------------
+  # Spring Boot's relaxed binding maps SPRING_DATASOURCE_* env vars automatically.
+  # Explicit placeholders here provide local-dev fallbacks.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/rutauq_db}
+    username: ${SPRING_DATASOURCE_USERNAME:rutauq_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:rutauq_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: RutaUQ-Pool
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      # Validate connections before handing them to the app.
+      # Avoids errors after the RDS idle timeout closes a connection.
+      keepalive-time: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: public
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  # ---- SMTP (JavaMailSender) --------------------------------------------------
+  # Host/port/credentials are injected by ECS via SPRING_MAIL_* env vars.
+  # STARTTLS must be enabled explicitly — Gmail port 587 rejects connections
+  # that skip the STARTTLS handshake with "530 5.7.0 Must issue a STARTTLS command first".
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  # ---- Graceful shutdown -----------------------------------------------------
+  # On SIGTERM (ECS task stop), Spring waits up to 30s for in-flight requests
+  # to complete before shutting down. Matches ECS's stopTimeout setting.
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+# ---- Server ------------------------------------------------------------------
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful          # enables graceful shutdown on SIGTERM
+  servlet:
+    context-path: /
+  error:
+    include-message: never    # never expose exception messages to clients
+    include-binding-errors: never
+  # Tomcat tuning — keep threads low for the 0.5 vCPU Fargate task
+  tomcat:
+    threads:
+      max: 50
+      min-spare: 5
+    accept-count: 25
+
+# ---- Actuator ----------------------------------------------------------------
+# /actuator/health is used by the ALB health check (unauthenticated).
+# Other endpoints are disabled — no sensitive data exposed on port 8080.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never     # ALB only needs UP/DOWN — hide internals
+      probes:
+        enabled: true         # /actuator/health/liveness + /actuator/health/readiness
+  health:
+    db:
+      enabled: true           # includes DB connectivity in health check
+
+# ---- OpenAPI / Swagger -------------------------------------------------------
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+# ---- App custom properties ---------------------------------------------------
+app:
+  name: Ruta Compartida UQ
+  version: 1.0.0
+  api-prefix: /api/v1
+
+  cors:
+    # Comma-separated list of allowed origins.
+    # ECS injects CORS_ALLOWED_ORIGINS with the CloudFront URL.
+    # Local defaults allow the Next.js and Expo dev servers.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+
+  # URL of the frontend app — used to build email links
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+
+  mail:
+    # Set MAIL_ENABLED=true in production to send real emails.
+    # When false (default), emails are printed to the log instead.
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:noreply@rutauq.com}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:rutaUQ-dev-secret-key-that-is-at-least-32-characters-long-change-in-prod}
+      expiration: 86400000    # 24 hours in ms
+    captcha:
+      enabled: false
+
+# ---- Mercado Pago ------------------------------------------------------------
+mercadopago:
+  access-token: ${MERCADOPAGO_ACCESS_TOKEN:token}
+  webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET:token}
+  api-base-url: https://api.mercadopago.com
+  notification-url: ${APP_BASE_URL:http://localhost:8080}/api/v1/payments/webhook

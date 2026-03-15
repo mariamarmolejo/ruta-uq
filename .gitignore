@@ -6,3 +6,5 @@
 /rutaUQ-backend/.idea/
 **/.DS_Store
 .DS_Store
+/rutaUQ-backend/target/
+/rutaUQ-backend/.idea/

@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  RutaUQ - ECR Container Registries
+  Private repositories for backend (Spring Boot) and frontend (Next.js).
+  Each repo has AES-256 encryption, scan-on-push, and a lifecycle policy.
+
+# =============================================================================
+# Parameters
+# =============================================================================
+
+Parameters:
+
+  Project:
+    Type: String
+    Default: rutauq
+
+  Environment:
+    Type: String
+    AllowedValues: [dev, staging, prod]
+
+  ImageTagMutability:
+    Type: String
+    Default: MUTABLE
+    AllowedValues: [MUTABLE, IMMUTABLE]
+    Description: >
+      MUTABLE  = CI can re-push the same tag (convenient for 'latest').
+      IMMUTABLE = each image must have a unique tag — recommended for prod.
+
+  MaxImageCount:
+    Type: Number
+    Default: 10
+    Description: Number of tagged images to retain per repository.
+
+# =============================================================================
+# Resources
+# =============================================================================
+
+Resources:
+
+  BackendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${Project}-backend-${Environment}
+      ImageTagMutability: !Ref ImageTagMutability
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Delete untagged images after 1 day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep the ${MaxImageCount} most recent tagged images",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPrefixList": ["v", "latest", "sha-"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${MaxImageCount}
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-backend-${Environment}
+        - Key: Service
+          Value: backend
+        - Key: Environment
+          Value: !Ref Environment
+
+  FrontendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${Project}-frontend-${Environment}
+      ImageTagMutability: !Ref ImageTagMutability
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Delete untagged images after 1 day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep the ${MaxImageCount} most recent tagged images",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPrefixList": ["v", "latest", "sha-"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${MaxImageCount}
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-frontend-${Environment}
+        - Key: Service
+          Value: frontend
+        - Key: Environment
+          Value: !Ref Environment
+
+# =============================================================================
+# Outputs  (exported for cross-stack imports)
+# =============================================================================
+
+Outputs:
+
+  BackendRepositoryUri:
+    Value: !GetAtt BackendRepository.RepositoryUri
+    Description: Full ECR URI — use as docker push/pull base (append :tag).
+    Export:
+      Name: !Sub ${Project}-${Environment}-BackendEcrUri
+
+  FrontendRepositoryUri:
+    Value: !GetAtt FrontendRepository.RepositoryUri
+    Description: Full ECR URI for frontend images.
+    Export:
+      Name: !Sub ${Project}-${Environment}-FrontendEcrUri
+
+  BackendRepositoryName:
+    Value: !Ref BackendRepository
+    Export:
+      Name: !Sub ${Project}-${Environment}-BackendEcrName
+
+  FrontendRepositoryName:
+    Value: !Ref FrontendRepository
+    Export:
+      Name: !Sub ${Project}-${Environment}-FrontendEcrName

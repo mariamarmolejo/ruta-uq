@@ -1,0 +1,6 @@
+[
+  { "ParameterKey": "Project",            "ParameterValue": "rutauq" },
+  { "ParameterKey": "Environment",        "ParameterValue": "dev" },
+  { "ParameterKey": "ImageTagMutability", "ParameterValue": "MUTABLE" },
+  { "ParameterKey": "MaxImageCount",      "ParameterValue": "10" }
+]

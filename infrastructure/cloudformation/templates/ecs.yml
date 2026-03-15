@@ -1,0 +1,447 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  RutaUQ - ECS Fargate + Application Load Balancer
+  Runs the Spring Boot backend as a Fargate service behind an internet-facing
+  ALB. Secrets are injected at runtime from SSM Parameter Store SecureStrings —
+  they never appear as plaintext in the task definition or CloudWatch Logs.
+  Depends on: networking stack, ecr stack, rds stack.
+
+# =============================================================================
+# Parameters
+# =============================================================================
+
+Parameters:
+
+  Project:
+    Type: String
+    Default: rutauq
+
+  Environment:
+    Type: String
+    AllowedValues: [dev, staging, prod]
+
+  BackendPort:
+    Type: Number
+    Default: 8080
+    Description: Must match server.port in Spring Boot and the networking stack.
+
+  BackendImageTag:
+    Type: String
+    Default: latest
+    Description: Docker image tag to deploy (e.g. 'latest' or a Git SHA like 'sha-abc1234').
+
+  BackendCpu:
+    Type: Number
+    Default: 512
+    Description: "CPU units for the Fargate task (256=0.25vCPU, 512=0.5vCPU, 1024=1vCPU)."
+
+  BackendMemory:
+    Type: Number
+    Default: 1024
+    Description: Memory in MB (must be a valid Fargate cpu/memory combination).
+
+  BackendDesiredCount:
+    Type: Number
+    Default: 1
+    Description: Number of running task replicas. Set to 2+ in prod for HA.
+
+  DbUsername:
+    Type: String
+    Default: rutauq_user
+
+  DbPasswordSsmPath:
+    Type: String
+    Default: /rutauq/dev/db-password
+    Description: SSM SecureString path for the RDS master password.
+
+  JwtSecretSsmPath:
+    Type: String
+    Default: /rutauq/dev/jwt-secret
+    Description: >
+      SSM SecureString path for the JWT signing secret. Create before deploying:
+        aws ssm put-parameter \
+          --name /rutauq/dev/jwt-secret \
+          --value "YOUR_SECRET" \
+          --type SecureString
+
+  MercadoPagoTokenSsmPath:
+    Type: String
+    Default: /rutauq/dev/mp-access-token
+    Description: SSM SecureString path for the Mercado Pago access token.
+
+  MercadoPagoWebhookSecretSsmPath:
+    Type: String
+    Default: /rutauq/dev/mp-webhook-secret
+    Description: SSM SecureString path for the Mercado Pago webhook signing secret.
+
+  FrontendUrl:
+    Type: String
+    Default: https://d2n5vuayqdjez9.cloudfront.net
+    Description: >
+      CloudFront URL of the frontend. Used as the CORS allowed origin AND as the
+      base URL for email verification / password-reset links (app.frontend-url).
+
+  BackendUrl:
+    Type: String
+    Default: ''
+    Description: Public HTTPS base URL of the backend (CloudFront API distribution).
+               Used to build the Mercado Pago webhook notification URL.
+
+  # ---- Email (Phase — email verification & password recovery) ----------------
+
+  MailEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: >
+      Set to 'true' to send real emails via SMTP. When 'false' (default) the
+      verification/reset links are printed to CloudWatch Logs instead.
+
+  MailFrom:
+    Type: String
+    Default: "noreply@rutauq.com"
+    Description: From address shown in outgoing emails.
+
+  MailHost:
+    Type: String
+    Default: "smtp.gmail.com"
+    Description: SMTP server hostname (e.g. smtp.gmail.com, email-smtp.us-east-1.amazonaws.com).
+
+  MailPort:
+    Type: Number
+    Default: 587
+    Description: SMTP server port (587 for STARTTLS, 465 for SSL).
+
+  MailUsername:
+    Type: String
+    Default: ''
+    Description: SMTP login username (typically the sending email address). Not sensitive.
+
+  MailPasswordSsmPath:
+    Type: String
+    Default: /rutauq/dev/mail-password
+    Description: >
+      SSM SecureString path for the SMTP password / app-password. Only fetched
+      when MailEnabled=true. Create before enabling:
+        aws ssm put-parameter \
+          --name /rutauq/dev/mail-password \
+          --value "YOUR_APP_PASSWORD" \
+          --type SecureString
+
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+
+# =============================================================================
+# Conditions
+# =============================================================================
+
+Conditions:
+  MailEnabled: !Equals [!Ref MailEnabled, 'true']
+
+# =============================================================================
+# Resources
+# =============================================================================
+
+Resources:
+
+  # --------------------------------------------------------------------------
+  # CloudWatch Log Group
+  # --------------------------------------------------------------------------
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${Project}-${Environment}
+      RetentionInDays: !Ref LogRetentionDays
+
+  # --------------------------------------------------------------------------
+  # ECS Cluster
+  # Container Insights enabled — gives per-task CPU/memory metrics in CloudWatch.
+  # --------------------------------------------------------------------------
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${Project}-${Environment}
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  # --------------------------------------------------------------------------
+  # Application Load Balancer
+  # Internet-facing, lives in the public subnets.
+  # --------------------------------------------------------------------------
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${Project}-${Environment}-alb
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - Fn::ImportValue: !Sub ${Project}-${Environment}-PublicSubnet1Id
+        - Fn::ImportValue: !Sub ${Project}-${Environment}-PublicSubnet2Id
+      SecurityGroups:
+        - Fn::ImportValue: !Sub ${Project}-${Environment}-AlbSgId
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${Project}-${Environment}-tg
+      Port: !Ref BackendPort
+      Protocol: HTTP
+      TargetType: ip          # Required for Fargate (awsvpc network mode)
+      VpcId:
+        Fn::ImportValue: !Sub ${Project}-${Environment}-VpcId
+      HealthCheckPath: /api/v1/health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'         # Faster deploys — tasks drain in 30s instead of 300s
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  # --------------------------------------------------------------------------
+  # IAM — Execution Role
+  # Used by the ECS agent (not the container itself) to:
+  #   - Pull the image from ECR
+  #   - Write container logs to CloudWatch
+  #   - Fetch SSM SecureString secrets at task startup
+  # --------------------------------------------------------------------------
+
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Project}-${Environment}-ecs-execution
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      # Grants ECR pull + CloudWatch Logs write
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: SSMSecretAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                # Scoped to this project/environment only
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/rutauq/${Environment}/*
+
+  # --------------------------------------------------------------------------
+  # IAM — Task Role
+  # Attached to the running container — what the application itself can do.
+  # Add S3, SES, SNS, etc. permissions here as features require them.
+  # --------------------------------------------------------------------------
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Project}-${Environment}-ecs-task
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      # No permissions by default — principle of least privilege.
+      # Extend this role when new AWS integrations are added.
+
+  # --------------------------------------------------------------------------
+  # ECS Task Definition
+  # Describes the container: image, resources, environment, secrets, logging.
+  # --------------------------------------------------------------------------
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${Project}-${Environment}-backend
+      Cpu: !Ref BackendCpu
+      Memory: !Ref BackendMemory
+      NetworkMode: awsvpc          # Required for Fargate
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: backend
+          # Combines the imported ECR URI with the image tag parameter
+          Image: !Sub
+            - '${Uri}:${Tag}'
+            - Uri:
+                Fn::ImportValue: !Sub ${Project}-${Environment}-BackendEcrUri
+              Tag: !Ref BackendImageTag
+          PortMappings:
+            - ContainerPort: !Ref BackendPort
+              Protocol: tcp
+          # Plain environment variables (non-sensitive)
+          Environment:
+            - Name: SERVER_PORT
+              Value: !Sub '${BackendPort}'
+            - Name: SPRING_PROFILES_ACTIVE
+              Value: !Ref Environment
+            - Name: SPRING_DATASOURCE_URL
+              Value:
+                Fn::ImportValue: !Sub ${Project}-${Environment}-DbUrl
+            - Name: SPRING_DATASOURCE_USERNAME
+              Value: !Ref DbUsername
+            - Name: CORS_ALLOWED_ORIGINS
+              Value: !Ref FrontendUrl
+            - Name: APP_BASE_URL
+              Value: !Ref BackendUrl
+            - Name: FRONTEND_URL
+              Value: !Ref FrontendUrl
+            - Name: MAIL_ENABLED
+              Value: !Ref MailEnabled
+            - Name: MAIL_FROM
+              Value: !Ref MailFrom
+            - Name: SPRING_MAIL_HOST
+              Value: !Ref MailHost
+            - Name: SPRING_MAIL_PORT
+              Value: !Sub '${MailPort}'
+            - Name: SPRING_MAIL_USERNAME
+              Value: !Ref MailUsername
+          # Secrets — fetched from SSM at container startup, injected as env vars.
+          # The ECS agent decrypts them; they are never stored in plaintext.
+          Secrets:
+            - Name: SPRING_DATASOURCE_PASSWORD
+              ValueFrom: !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
+                - Path: !Ref DbPasswordSsmPath
+            - Name: JWT_SECRET
+              ValueFrom: !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
+                - Path: !Ref JwtSecretSsmPath
+            - Name: MERCADOPAGO_ACCESS_TOKEN
+              ValueFrom: !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
+                - Path: !Ref MercadoPagoTokenSsmPath
+            - Name: MERCADOPAGO_WEBHOOK_SECRET
+              ValueFrom: !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
+                - Path: !Ref MercadoPagoWebhookSecretSsmPath
+            - !If
+              - MailEnabled
+              - Name: SPRING_MAIL_PASSWORD
+                ValueFrom: !Sub
+                  - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
+                  - Path: !Ref MailPasswordSsmPath
+              - !Ref AWS::NoValue
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Sub '${AWS::Region}'
+              awslogs-stream-prefix: backend
+          # Mark the container as essential — if it crashes the task is replaced
+          Essential: true
+
+  # --------------------------------------------------------------------------
+  # ECS Service
+  # Keeps BackendDesiredCount tasks running, registers them with the ALB.
+  # --------------------------------------------------------------------------
+
+  Service:
+    Type: AWS::ECS::Service
+    # The listener must exist before the service tries to register targets
+    DependsOn: HttpListener
+    Properties:
+      ServiceName: !Sub ${Project}-${Environment}-backend
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: !Ref BackendDesiredCount
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED   # Private subnets — internet via NAT Gateway
+          Subnets:
+            - Fn::ImportValue: !Sub ${Project}-${Environment}-PrivateSubnet1Id
+            - Fn::ImportValue: !Sub ${Project}-${Environment}-PrivateSubnet2Id
+          SecurityGroups:
+            - Fn::ImportValue: !Sub ${Project}-${Environment}-EcsSgId
+      LoadBalancers:
+        - ContainerName: backend
+          ContainerPort: !Ref BackendPort
+          TargetGroupArn: !Ref TargetGroup
+      DeploymentConfiguration:
+        # During a rolling update: take down at most half the tasks before
+        # bringing new ones up — keeps the service available at all times.
+        MinimumHealthyPercent: 50
+        MaximumPercent: 200
+      # Wait for tasks to pass health checks before marking deployment complete
+      HealthCheckGracePeriodSeconds: 60
+
+# =============================================================================
+# Outputs  (exported for cross-stack imports)
+# =============================================================================
+
+Outputs:
+
+  ApiUrl:
+    Value: !Sub https://${LoadBalancer.DNSName}
+    Description: Backend API URL via ALB. Use this as NEXT_PUBLIC_API_URL until a custom domain is set up.
+    Export:
+      Name: !Sub ${Project}-${Environment}-ApiUrl
+
+  AlbDnsName:
+    Value: !GetAtt LoadBalancer.DNSName
+    Description: Raw ALB DNS name — used by the CDN stack (Phase 6) as the origin.
+    Export:
+      Name: !Sub ${Project}-${Environment}-AlbDnsName
+
+  AlbArn:
+    Value: !Ref LoadBalancer
+    Export:
+      Name: !Sub ${Project}-${Environment}-AlbArn
+
+  AlbArnSuffix:
+    Value: !GetAtt LoadBalancer.LoadBalancerFullName
+    Description: Short ALB identifier used in CloudWatch metric dimensions.
+    Export:
+      Name: !Sub ${Project}-${Environment}-AlbArnSuffix
+
+  ClusterName:
+    Value: !Ref Cluster
+    Export:
+      Name: !Sub ${Project}-${Environment}-ClusterName
+
+  ServiceName:
+    Value: !GetAtt Service.Name
+    Export:
+      Name: !Sub ${Project}-${Environment}-ServiceName
+
+  TaskRoleArn:
+    Value: !GetAtt TaskRole.Arn
+    Description: Task role ARN — extend this role when new AWS integrations are added.
+    Export:
+      Name: !Sub ${Project}-${Environment}-TaskRoleArn
+
+  ExecutionRoleArn:
+    Value: !GetAtt ExecutionRole.Arn
+    Export:
+      Name: !Sub ${Project}-${Environment}-ExecutionRoleArn
+
+  LogGroupName:
+    Value: !Ref LogGroup
+    Export:
+      Name: !Sub ${Project}-${Environment}-LogGroupName

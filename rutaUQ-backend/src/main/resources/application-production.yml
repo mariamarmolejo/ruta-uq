@@ -1,0 +1,36 @@
+# =============================================================================
+# Profile: production
+# AWS production environment.
+# Swagger disabled, minimal logging, stricter connection pool.
+# =============================================================================
+
+spring:
+  jpa:
+    show-sql: false
+
+  flyway:
+    out-of-order: false
+
+  datasource:
+    hikari:
+      maximum-pool-size: 20   # scale up for prod traffic
+      minimum-idle: 5
+
+logging:
+  level:
+    root: WARN
+    com.rutauq: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+
+# Disable Swagger in production — no API docs exposed publicly
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+app:
+  security:
+    captcha:
+      enabled: false    # enable once a real captcha provider is integrated

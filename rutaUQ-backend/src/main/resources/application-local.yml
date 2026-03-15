@@ -1,0 +1,42 @@
+# =============================================================================
+# Profile: local
+# Used for development on a local machine with Docker Compose.
+# Start the database with: docker-compose up -d
+# Run the app with: ./mvnw spring-boot:run
+# =============================================================================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/rutauq_db
+    username: rutauq_user
+    password: rutauq_pass
+
+  jpa:
+    show-sql: false
+
+  flyway:
+    out-of-order: false
+
+logging:
+  level:
+    com.rutauq: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+management:
+  endpoint:
+    health:
+      show-details: always    # show DB status in health response locally
+
+# Mail: disabled locally — verification links are printed to the console log
+app:
+  mail:
+    enabled: false
+  frontend-url: http://localhost:3000

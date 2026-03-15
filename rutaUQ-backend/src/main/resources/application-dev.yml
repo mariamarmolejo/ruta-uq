@@ -1,0 +1,26 @@
+# =============================================================================
+# Profile: dev
+# AWS dev environment (ECS Fargate + RDS).
+# All sensitive values come from SSM Parameter Store secrets injected by ECS.
+# No values are hardcoded here — everything is overridden by environment vars.
+# =============================================================================
+
+spring:
+  jpa:
+    show-sql: false
+
+  flyway:
+    out-of-order: false
+
+logging:
+  level:
+    root: INFO
+    com.rutauq: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+
+springdoc:
+  swagger-ui:
+    enabled: true     # keep enabled in dev for API testing
+  api-docs:
+    enabled: true

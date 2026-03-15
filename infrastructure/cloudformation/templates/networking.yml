@@ -1,0 +1,457 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  RutaUQ - Networking
+  Three-tier VPC: public (ALB + NAT), private (ECS), isolated (RDS).
+  Deploy this stack before all others — downstream stacks import its exports.
+
+# =============================================================================
+# Parameters
+# =============================================================================
+
+Parameters:
+
+  Project:
+    Type: String
+    Default: rutauq
+
+  Environment:
+    Type: String
+    AllowedValues: [dev, staging, prod]
+
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: 10.0.3.0/24
+
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: 10.0.4.0/24
+
+  DbSubnet1Cidr:
+    Type: String
+    Default: 10.0.5.0/24
+
+  DbSubnet2Cidr:
+    Type: String
+    Default: 10.0.6.0/24
+
+  SingleNatGateway:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+    Description: >
+      true  = one shared NAT Gateway (~$32/month, fine for dev).
+      false = one NAT per AZ (prod HA, survives an AZ failure).
+
+  BackendPort:
+    Type: Number
+    Default: 8080
+    Description: Port the Spring Boot container listens on.
+
+# =============================================================================
+# Conditions
+# =============================================================================
+
+Conditions:
+  IsSingleNat: !Equals [!Ref SingleNatGateway, 'true']
+  IsMultiNat:  !Not [!Equals [!Ref SingleNatGateway, 'true']]
+
+# =============================================================================
+# Resources
+# =============================================================================
+
+Resources:
+
+  # --------------------------------------------------------------------------
+  # VPC
+  # --------------------------------------------------------------------------
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-igw
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # --------------------------------------------------------------------------
+  # Public Subnets  (ALB + NAT Gateways)
+  # --------------------------------------------------------------------------
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-public-1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-public-2
+
+  # --------------------------------------------------------------------------
+  # Private Subnets  (ECS Fargate tasks)
+  # --------------------------------------------------------------------------
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-private-1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-private-2
+
+  # --------------------------------------------------------------------------
+  # DB Subnets  (RDS — no internet route)
+  # --------------------------------------------------------------------------
+
+  DbSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref DbSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-db-1
+
+  DbSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref DbSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-db-2
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub ${Project}-${Environment} DB subnet group
+      SubnetIds:
+        - !Ref DbSubnet1
+        - !Ref DbSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-db-subnet-group
+
+  # --------------------------------------------------------------------------
+  # NAT Gateways
+  # --------------------------------------------------------------------------
+
+  NatEip1:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-nat-eip-1
+
+  NatEip2:
+    Type: AWS::EC2::EIP
+    Condition: IsMultiNat
+    DependsOn: GatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-nat-eip-2
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEip1.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-nat-1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Condition: IsMultiNat
+    Properties:
+      AllocationId: !GetAtt NatEip2.AllocationId
+      SubnetId: !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-nat-2
+
+  # --------------------------------------------------------------------------
+  # Public Route Table  (→ Internet Gateway)
+  # --------------------------------------------------------------------------
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-public-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1Assoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2Assoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # --------------------------------------------------------------------------
+  # Private Route Tables  (→ NAT Gateway)
+  # --------------------------------------------------------------------------
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-private-rt-1
+
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1Assoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-private-rt-2
+
+  # When single NAT, both private subnets route through NatGateway1.
+  # When multi NAT, subnet-2 gets its own gateway for AZ-local routing.
+  PrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !If [IsSingleNat, !Ref NatGateway1, !Ref NatGateway2]
+
+  PrivateSubnet2Assoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable2
+
+  # --------------------------------------------------------------------------
+  # DB Route Table  (no internet — completely isolated)
+  # --------------------------------------------------------------------------
+
+  DbRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-db-rt
+
+  DbSubnet1Assoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DbSubnet1
+      RouteTableId: !Ref DbRouteTable
+
+  DbSubnet2Assoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DbSubnet2
+      RouteTableId: !Ref DbRouteTable
+
+  # --------------------------------------------------------------------------
+  # Security Groups
+  # --------------------------------------------------------------------------
+
+  # Internet → ALB (80 / 443)
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB - allows HTTP and HTTPS from the internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-alb-sg
+
+  # ALB → ECS (BackendPort only)
+  EcsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS tasks - accepts traffic only from the ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref BackendPort
+          ToPort: !Ref BackendPort
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-ecs-sg
+
+  # ECS → RDS (5432 only)
+  RdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS - accepts PostgreSQL only from ECS tasks
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref EcsSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-rds-sg
+
+# =============================================================================
+# Outputs  (exported for cross-stack imports)
+# =============================================================================
+
+Outputs:
+
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${Project}-${Environment}-VpcId
+
+  PublicSubnet1Id:
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub ${Project}-${Environment}-PublicSubnet1Id
+
+  PublicSubnet2Id:
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub ${Project}-${Environment}-PublicSubnet2Id
+
+  PrivateSubnet1Id:
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub ${Project}-${Environment}-PrivateSubnet1Id
+
+  PrivateSubnet2Id:
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub ${Project}-${Environment}-PrivateSubnet2Id
+
+  DbSubnet1Id:
+    Value: !Ref DbSubnet1
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbSubnet1Id
+
+  DbSubnet2Id:
+    Value: !Ref DbSubnet2
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbSubnet2Id
+
+  DbSubnetGroupName:
+    Value: !Ref DbSubnetGroup
+    Export:
+      Name: !Sub ${Project}-${Environment}-DbSubnetGroupName
+
+  AlbSecurityGroupId:
+    Value: !Ref AlbSecurityGroup
+    Export:
+      Name: !Sub ${Project}-${Environment}-AlbSgId
+
+  EcsSecurityGroupId:
+    Value: !Ref EcsSecurityGroup
+    Export:
+      Name: !Sub ${Project}-${Environment}-EcsSgId
+
+  RdsSecurityGroupId:
+    Value: !Ref RdsSecurityGroup
+    Export:
+      Name: !Sub ${Project}-${Environment}-RdsSgId
+
+  NatPublicIp1:
+    Value: !Ref NatEip1
+    Export:
+      Name: !Sub ${Project}-${Environment}-NatIp1
+
+  NatPublicIp2:
+    Condition: IsMultiNat
+    Value: !Ref NatEip2
+    Export:
+      Name: !Sub ${Project}-${Environment}-NatIp2

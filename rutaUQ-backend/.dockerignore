@@ -1,0 +1,8 @@
+.git/
+.github/
+.idea/
+*.iml
+*.log
+docker-compose.yml
+src/
+pom.xml
