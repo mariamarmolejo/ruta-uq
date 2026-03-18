@@ -32,7 +32,7 @@ public class CreateTripRequest {
 
     @NotNull(message = "Price per seat is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Price cannot be negative")
-    @Digits(integer = 8, fraction = 2, message = "Invalid price format")
+    @Digits(integer = 8, fraction = 0, message = "Price must be a whole number of COP (no decimals)")
     private BigDecimal pricePerSeat;
 
     @Size(max = 500, message = "Description must not exceed 500 characters")

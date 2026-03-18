@@ -63,9 +63,10 @@ public class PaymentService {
         }
 
         Trip trip = reservation.getTrip();
+        // COP: Mercado Pago rejects decimal transaction_amount (e.g. 51.00)
         BigDecimal amount = trip.getPricePerSeat()
                 .multiply(BigDecimal.valueOf(reservation.getSeatsReserved()))
-                .setScale(2, RoundingMode.HALF_UP);
+                .setScale(0, RoundingMode.HALF_UP);
 
         String externalRef = reservation.getId().toString();
         String payerEmail = (request.getPayerEmail() != null && !request.getPayerEmail().isBlank())
@@ -137,7 +138,7 @@ public class PaymentService {
                         .items(List.of(MpCreatePaymentRequest.MpItem.builder()
                                 .id(trip.getId().toString())
                                 .title(itemTitle)
-                                .unitPrice(trip.getPricePerSeat().setScale(2, RoundingMode.HALF_UP))
+                                .unitPrice(trip.getPricePerSeat().setScale(0, RoundingMode.HALF_UP))
                                 .quantity(reservation.getSeatsReserved())
                                 .build()))
                         .build())

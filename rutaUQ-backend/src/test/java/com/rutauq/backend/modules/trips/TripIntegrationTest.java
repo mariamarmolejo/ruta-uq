@@ -55,7 +55,7 @@ class TripIntegrationTest {
     private static final String PASSWORD     = "SecurePass123!";
     private static final String PLATE        = "TRP001";
     private static final int    SEATS        = 3;
-    private static final BigDecimal PRICE    = new BigDecimal("5000.00");
+    private static final BigDecimal PRICE    = new BigDecimal("5000");
 
     private String driverToken;
     private String clientToken;
@@ -186,7 +186,20 @@ class TripIntegrationTest {
                         .header("Authorization", "Bearer " + driverToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(tripBody(vehicleId, "Armenia", "UQ Campus", 2,
-                                new BigDecimal("-100.00"))))
+                                new BigDecimal("-100"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    @Order(7)
+    @DisplayName("POST /trips — fractional COP price → 400 VALIDATION_ERROR")
+    void createTrip_fractionalPrice_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/trips")
+                        .header("Authorization", "Bearer " + driverToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(tripBody(vehicleId, "Armenia", "UQ Campus", 2,
+                                new BigDecimal("51.00"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
     }
@@ -196,7 +209,7 @@ class TripIntegrationTest {
     // =========================================================================
 
     @Test
-    @Order(7)
+    @Order(8)
     @DisplayName("POST /trips — DRIVER with valid data → 201, status=SCHEDULED, captures tripId")
     void createTrip_success() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/trips")
@@ -219,7 +232,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(8)
+    @Order(9)
     @DisplayName("POST /trips — same vehicle already has a SCHEDULED trip → 403 OPERATION_NOT_PERMITTED")
     void createTrip_vehicleAlreadyScheduled_returns403() throws Exception {
         mockMvc.perform(post("/api/v1/trips")
@@ -235,7 +248,7 @@ class TripIntegrationTest {
     // =========================================================================
 
     @Test
-    @Order(9)
+    @Order(10)
     @DisplayName("GET /trips — authenticated → 200, includes our SCHEDULED trip")
     void listTrips_noFilter_includesOurTrip() throws Exception {
         mockMvc.perform(get("/api/v1/trips")
@@ -245,7 +258,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(10)
+    @Order(11)
     @DisplayName("GET /trips?origin=Armenia — case-insensitive partial match → trip found")
     void listTrips_filterByOrigin_returnsMatch() throws Exception {
         mockMvc.perform(get("/api/v1/trips")
@@ -256,7 +269,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(11)
+    @Order(12)
     @DisplayName("GET /trips?destination=UQ+Campus — partial match → trip found")
     void listTrips_filterByDestination_returnsMatch() throws Exception {
         mockMvc.perform(get("/api/v1/trips")
@@ -267,7 +280,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(12)
+    @Order(13)
     @DisplayName("GET /trips?minSeats=4 — trip has 3 seats → not in results")
     void listTrips_filterMinSeats_tooHigh_notFound() throws Exception {
         mockMvc.perform(get("/api/v1/trips")
@@ -278,7 +291,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(13)
+    @Order(14)
     @DisplayName("GET /trips?minSeats=2 — trip has 3 seats → found")
     void listTrips_filterMinSeats_satisfied_found() throws Exception {
         mockMvc.perform(get("/api/v1/trips")
@@ -293,7 +306,7 @@ class TripIntegrationTest {
     // =========================================================================
 
     @Test
-    @Order(14)
+    @Order(15)
     @DisplayName("GET /trips/my — DRIVER → 200, contains our trip as SCHEDULED")
     void getMyTrips_driver_returnsOwnTrips() throws Exception {
         mockMvc.perform(get("/api/v1/trips/my")
@@ -305,7 +318,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(15)
+    @Order(16)
     @DisplayName("GET /trips/my — CLIENT role → 403")
     void getMyTrips_clientRole_returns403() throws Exception {
         mockMvc.perform(get("/api/v1/trips/my")
@@ -318,7 +331,7 @@ class TripIntegrationTest {
     // =========================================================================
 
     @Test
-    @Order(16)
+    @Order(17)
     @DisplayName("GET /trips/{id} → 200, full detail with nested driver and vehicle summary")
     void getTripById_returns200WithFullDetail() throws Exception {
         mockMvc.perform(get("/api/v1/trips/" + tripId)
@@ -333,7 +346,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(17)
+    @Order(18)
     @DisplayName("GET /trips/{randomUUID} → 404 TRIP_NOT_FOUND")
     void getTripById_nonExistent_returns404() throws Exception {
         mockMvc.perform(get("/api/v1/trips/" + UUID.randomUUID())
@@ -347,7 +360,7 @@ class TripIntegrationTest {
     // =========================================================================
 
     @Test
-    @Order(18)
+    @Order(19)
     @DisplayName("PUT /trips/{id} — partial update (description + price) → 200, changes reflected")
     void updateTrip_partialUpdate_returns200() throws Exception {
         mockMvc.perform(put("/api/v1/trips/" + tripId)
@@ -355,7 +368,7 @@ class TripIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "description", "Salida puntual, trae efectivo",
-                                "pricePerSeat", new BigDecimal("4500.00")
+                                "pricePerSeat", new BigDecimal("4500")
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.description").value("Salida puntual, trae efectivo"))
@@ -364,7 +377,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(19)
+    @Order(20)
     @DisplayName("PUT /trips/{id} — update availableSeats above vehicle capacity → 400 VALIDATION_ERROR")
     void updateTrip_seatsExceedCapacity_returns400() throws Exception {
         mockMvc.perform(put("/api/v1/trips/" + tripId)
@@ -378,7 +391,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(20)
+    @Order(21)
     @DisplayName("PUT /trips/{id} — CLIENT role → 403")
     void updateTrip_clientRole_returns403() throws Exception {
         mockMvc.perform(put("/api/v1/trips/" + tripId)
@@ -393,7 +406,7 @@ class TripIntegrationTest {
     // =========================================================================
 
     @Test
-    @Order(21)
+    @Order(22)
     @DisplayName("DELETE /trips/{id} — DRIVER cancels own trip → 200, status CANCELLED")
     void cancelTrip_returns200() throws Exception {
         mockMvc.perform(delete("/api/v1/trips/" + tripId)
@@ -408,7 +421,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(22)
+    @Order(23)
     @DisplayName("PUT /trips/{id} on CANCELLED trip → 409 TRIP_ALREADY_CLOSED")
     void updateTrip_cancelled_returns409() throws Exception {
         mockMvc.perform(put("/api/v1/trips/" + tripId)
@@ -420,7 +433,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(23)
+    @Order(24)
     @DisplayName("DELETE /trips/{id} on CANCELLED trip → 409 TRIP_ALREADY_CLOSED")
     void cancelTrip_alreadyCancelled_returns409() throws Exception {
         mockMvc.perform(delete("/api/v1/trips/" + tripId)
@@ -430,7 +443,7 @@ class TripIntegrationTest {
     }
 
     @Test
-    @Order(24)
+    @Order(25)
     @DisplayName("GET /trips (public list) — CANCELLED trip not included (only SCHEDULED shown)")
     void listTrips_cancelledTripNotVisible() throws Exception {
         mockMvc.perform(get("/api/v1/trips")

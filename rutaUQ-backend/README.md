@@ -336,7 +336,7 @@ aws ecs update-service     --cluster rutauq-dev     --service rutauq-dev-backend
 
 ## Roles
 
-| Role | Description |
+| Role | Description |./de
 |---|---|
 | `CLIENT` | Passenger — can search trips, create reservations, make payments |
 | `DRIVER` | Driver — can publish trips, manage vehicles |

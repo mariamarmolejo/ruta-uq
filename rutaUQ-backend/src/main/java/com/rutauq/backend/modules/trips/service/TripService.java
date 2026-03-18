@@ -21,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -67,7 +69,7 @@ public class TripService {
                 .destination(request.getDestination().trim())
                 .departureTime(request.getDepartureTime())
                 .availableSeats(request.getAvailableSeats())
-                .pricePerSeat(request.getPricePerSeat())
+                .pricePerSeat(integerCOP(request.getPricePerSeat()))
                 .description(request.getDescription())
                 .status(TripStatus.SCHEDULED)
                 .build();
@@ -108,7 +110,9 @@ public class TripService {
         if (request.getOrigin() != null) trip.setOrigin(request.getOrigin().trim());
         if (request.getDestination() != null) trip.setDestination(request.getDestination().trim());
         if (request.getDepartureTime() != null) trip.setDepartureTime(request.getDepartureTime());
-        if (request.getPricePerSeat() != null) trip.setPricePerSeat(request.getPricePerSeat());
+        if (request.getPricePerSeat() != null) {
+            trip.setPricePerSeat(integerCOP(request.getPricePerSeat()));
+        }
         if (request.getDescription() != null) trip.setDescription(request.getDescription());
         if (request.getAvailableSeats() != null) {
             if (request.getAvailableSeats() > trip.getVehicle().getSeats()) {
@@ -168,6 +172,11 @@ public class TripService {
         trip.setStatus(TripStatus.CANCELLED);
         tripRepository.save(trip);
         log.info("Trip {} cancelled by driver {}", tripId, currentUser.getEmail());
+    }
+
+    /** COP amounts for Mercado Pago must be whole pesos (no decimals). */
+    private static BigDecimal integerCOP(BigDecimal value) {
+        return value.setScale(0, RoundingMode.HALF_UP);
     }
 
     private void requireScheduled(Trip trip) {

@@ -15,7 +15,10 @@ const tripSchema = z.object({
   destination: z.string().min(2, "Destination is required"),
   departureTime: z.string().min(1, "Departure time is required"),
   availableSeats: z.number({ message: "Enter a number" }).min(1).max(20),
-  pricePerSeat: z.number({ message: "Enter a number" }).min(0),
+  pricePerSeat: z
+    .number({ message: "Enter a number" })
+    .min(0, "Price cannot be negative")
+    .refine((n) => Number.isInteger(n), "Price must be a whole number of COP (no decimals)"),
   vehicleId: z.string().min(1, "Select a vehicle"),
   description: z.string().optional(),
 });
@@ -142,8 +145,9 @@ export default function TripForm({
           label="Price per seat (COP)"
           type="number"
           min={0}
-          step={100}
+          step={1}
           placeholder="5000"
+          helperText="Whole pesos only (required for payments)"
           error={errors.pricePerSeat?.message}
           {...register("pricePerSeat", { valueAsNumber: true })}
         />

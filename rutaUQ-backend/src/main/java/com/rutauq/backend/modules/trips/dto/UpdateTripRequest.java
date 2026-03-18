@@ -23,7 +23,7 @@ public class UpdateTripRequest {
     private Integer availableSeats;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "Price cannot be negative")
-    @Digits(integer = 8, fraction = 2, message = "Invalid price format")
+    @Digits(integer = 8, fraction = 0, message = "Price must be a whole number of COP (no decimals)")
     private BigDecimal pricePerSeat;
 
     @Size(max = 500)
