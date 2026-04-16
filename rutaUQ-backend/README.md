@@ -1,4 +1,4 @@
-# Ruta Compartida UQ — Backend
+mvn -v# Ruta Compartida UQ — Backend
 
 Backend REST API for **Ruta Compartida UQ**, a carpooling platform connecting passengers with drivers at Universidad de Quindío (Armenia, Colombia).
 
