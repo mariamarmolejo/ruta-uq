@@ -11,6 +11,7 @@
   { "ParameterKey": "JwtSecretSsmPath",              "ParameterValue": "/rutauq/dev/jwt-secret" },
   { "ParameterKey": "MercadoPagoTokenSsmPath",       "ParameterValue": "/rutauq/dev/mp-access-token" },
   { "ParameterKey": "MercadoPagoWebhookSecretSsmPath","ParameterValue": "/rutauq/dev/mp-webhook-secret" },
+  { "ParameterKey": "GoogleClientIdSsmPath",          "ParameterValue": "/rutauq/dev/google-client-id" },
   { "ParameterKey": "FrontendUrl",                    "ParameterValue": "https://d2xjb72kztwbb5.cloudfront.net" },
   { "ParameterKey": "BackendUrl",                     "ParameterValue": "https://d4k7z67qugw7a.cloudfront.net" },
   { "ParameterKey": "LogRetentionDays",              "ParameterValue": "30" },

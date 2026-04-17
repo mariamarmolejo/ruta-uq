@@ -27,8 +27,11 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(length = 255)
     private String password;
+
+    @Column(name = "google_id", length = 255)
+    private String googleId;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;

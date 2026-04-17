@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getErrorMessage, cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 
 const registerSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -185,6 +186,16 @@ export default function RegisterPage() {
           Create account
         </Button>
       </form>
+
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-2 text-neutral-500">o continúa con</span>
+        </div>
+      </div>
+      <GoogleLoginButton />
 
       <p className="mt-6 text-center text-sm text-neutral-500">
         Already have an account?{" "}

@@ -74,6 +74,11 @@ Parameters:
     Default: /rutauq/dev/mp-webhook-secret
     Description: SSM SecureString path for the Mercado Pago webhook signing secret.
 
+  GoogleClientIdSsmPath:
+    Type: String
+    Default: /rutauq/dev/google-client-id
+    Description: SSM SecureString path for the Google OAuth2 Client ID.
+
   FrontendUrl:
     Type: String
     Default: https://d2n5vuayqdjez9.cloudfront.net
@@ -340,6 +345,10 @@ Resources:
               ValueFrom: !Sub
                 - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
                 - Path: !Ref MercadoPagoWebhookSecretSsmPath
+            - Name: GOOGLE_CLIENT_ID
+              ValueFrom: !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
+                - Path: !Ref GoogleClientIdSsmPath
             - !If
               - MailEnabled
               - Name: SPRING_MAIL_PASSWORD

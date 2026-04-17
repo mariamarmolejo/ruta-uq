@@ -22,6 +22,7 @@
 #       aws ssm put-parameter --name /rutauq/dev/jwt-secret        --value "..." --type SecureString
 #       aws ssm put-parameter --name /rutauq/dev/mp-access-token   --value "..." --type SecureString
 #       aws ssm put-parameter --name /rutauq/dev/mp-webhook-secret --value "..." --type SecureString
+#       aws ssm put-parameter --name /rutauq/dev/google-client-id  --value "..." --type SecureString
 #   - (Only when MailEnabled=true in ecs.json) SMTP password:
 #       aws ssm put-parameter --name /rutauq/dev/mail-password     --value "..." --type SecureString
 # =============================================================================

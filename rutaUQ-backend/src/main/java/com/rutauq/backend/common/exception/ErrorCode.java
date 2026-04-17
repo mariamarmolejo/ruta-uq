@@ -39,7 +39,10 @@ public enum ErrorCode {
     PAYMENT_FAILED("Payment processing failed", HttpStatus.PAYMENT_REQUIRED),
     PAYMENT_NOT_FOUND("Payment record not found", HttpStatus.NOT_FOUND),
     PAYMENT_INVALID_STATUS("Cannot process payment in the current reservation status", HttpStatus.CONFLICT),
-    MERCADO_PAGO_ERROR("Mercado Pago API returned an error", HttpStatus.BAD_GATEWAY);
+    MERCADO_PAGO_ERROR("Mercado Pago API returned an error", HttpStatus.BAD_GATEWAY),
+
+    // Google OAuth (Phase Google)
+    GOOGLE_TOKEN_INVALID("Google ID token is invalid or expired", HttpStatus.UNAUTHORIZED);
 
     private final String defaultMessage;
     private final HttpStatus httpStatus;
