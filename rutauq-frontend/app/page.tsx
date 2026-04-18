@@ -1,8 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import Navbar from "@/components/layout/Navbar";
 import Button from "@/components/ui/Button";
 
 export default function Home() {
+  const t = useTranslations("home");
+  const tBrand = useTranslations();
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -24,21 +30,18 @@ export default function Home() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-neutral-900">
-            Ruta Compartida UQ
+            {tBrand("brand")}
           </h1>
-          <p className="max-w-md text-neutral-500">
-            Connect with drivers and passengers at Universidad de Quindio.
-            Share your ride, reduce costs, and travel together.
-          </p>
+          <p className="max-w-md text-neutral-500">{t("tagline")}</p>
         </div>
 
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           <Link href="/register">
-            <Button size="lg">Get started</Button>
+            <Button size="lg">{t("getStarted")}</Button>
           </Link>
           <Link href="/trips">
             <Button variant="outline" size="lg">
-              Browse trips
+              {t("browseTrips")}
             </Button>
           </Link>
         </div>

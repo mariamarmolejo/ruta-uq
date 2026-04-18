@@ -5,6 +5,7 @@
 # Usage:
 #   export AWS_PROFILE=dev
 #
+#   ./deploy.sh dev certificate  # request ACM cert for rutauq.online (DNS validation)
 #   ./deploy.sh dev networking   # deploy/update networking stack
 #   ./deploy.sh dev ecr          # deploy/update ECR stack
 #   ./deploy.sh dev rds          # deploy/update RDS stack
@@ -12,7 +13,7 @@
 #   ./deploy.sh dev push         # build JAR + Docker image, push to ECR, force ECS deploy
 #   ./deploy.sh dev push-frontend # build Next.js, sync to S3, invalidate CloudFront
 #   ./deploy.sh dev cdn          # deploy/update S3 + CloudFront stack
-#   ./deploy.sh dev all          # deploy all stacks in dependency order
+#   ./deploy.sh dev all          # certificate → networking → ecr → rds → ecs → cdn
 #
 # Prerequisites:
 #   - AWS CLI v2 installed and profile configured
@@ -93,10 +94,86 @@ show_outputs() {
 }
 
 # -----------------------------------------------------------------------------
+# print_dns_instructions
+#   After cdn is deployed, print the exact DNS records to configure at the
+#   registrar so the operator knows what to do next.
+# -----------------------------------------------------------------------------
+
+print_dns_instructions() {
+  local cdn_stack="${PROJECT}-${ENVIRONMENT}-cdn"
+  local ecs_stack="${PROJECT}-${ENVIRONMENT}-ecs"
+
+  CF_DOMAIN=$(aws cloudformation describe-stacks --stack-name "${cdn_stack}" --region "${REGION}" \
+    --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomain'].OutputValue" --output text 2>/dev/null || echo "<cdn-not-deployed>")
+  APEX_CF_DOMAIN=$(aws cloudformation describe-stacks --stack-name "${cdn_stack}" --region "${REGION}" \
+    --query "Stacks[0].Outputs[?OutputKey=='ApexCloudfrontDomain'].OutputValue" --output text 2>/dev/null || echo "<apex-cdn-not-deployed>")
+  ALB_DNS=$(aws cloudformation describe-stacks --stack-name "${ecs_stack}" --region "${REGION}" \
+    --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" --output text 2>/dev/null || echo "<ecs-not-deployed>")
+
+  echo ""
+  echo "========================================"
+  echo " DNS records to add at your registrar"
+  echo "========================================"
+  printf "  %-8s  %-20s  %s\n" "Type" "Name" "Value"
+  printf "  %-8s  %-20s  %s\n" "----" "----" "-----"
+  printf "  %-8s  %-20s  %s\n" "CNAME"  "www"    "${CF_DOMAIN}"
+  printf "  %-8s  %-20s  %s\n" "CNAME"  "api"    "${ALB_DNS}"
+  printf "  %-8s  %-20s  %s\n" "ALIAS"  "@"      "${APEX_CF_DOMAIN}"
+  echo ""
+  echo " NOTE: Use ALIAS/ANAME for @ if your registrar supports it."
+  echo "       If not, CNAME @ to the apex CloudFront domain above."
+  echo " NOTE: Also add the 3 ACM CNAME validation records shown in the"
+  echo "       ACM console before the certificate status reaches ISSUED."
+  echo "========================================"
+}
+
+# -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
 case "${STACK}" in
+
+  certificate)
+    deploy_stack certificate
+    show_outputs certificate
+
+    # Read the ARN from the stack output and patch both parameter files in place.
+    CERT_ARN=$(aws cloudformation describe-stacks \
+      --stack-name "${PROJECT}-${ENVIRONMENT}-certificate" \
+      --region     "${REGION}" \
+      --query      "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" \
+      --output     text)
+
+    if [[ -z "${CERT_ARN}" || "${CERT_ARN}" == "None" ]]; then
+      echo ""
+      echo "WARNING: Could not read CertificateArn from stack output."
+      echo "  Copy it manually into:"
+      echo "    ${PARAMS_DIR}/cdn.json  → AcmCertificateArn"
+      echo "    ${PARAMS_DIR}/ecs.json  → AcmCertificateArn"
+    else
+      for params_file in "${PARAMS_DIR}/cdn.json" "${PARAMS_DIR}/ecs.json"; do
+        tmp=$(mktemp)
+        jq --arg arn "${CERT_ARN}" \
+          'map(if .ParameterKey == "AcmCertificateArn" then .ParameterValue = $arn else . end)' \
+          "${params_file}" > "${tmp}" && mv "${tmp}" "${params_file}"
+      done
+      echo ""
+      echo " AcmCertificateArn written to cdn.json and ecs.json: ${CERT_ARN}"
+    fi
+
+    echo ""
+    echo "========================================"
+    echo " NEXT STEP: DNS validation"
+    echo "========================================"
+    echo " 1. Open the ACM console in us-east-1"
+    echo " 2. Find the certificate for rutauq.online"
+    echo " 3. Note the 3 CNAME validation records"
+    echo " 4. Add them at your registrar DNS panel"
+    echo " 5. Wait ~10–30 min for status = ISSUED"
+    echo " 6. Then run:  $0 ${ENVIRONMENT} networking"
+    echo "               $0 ${ENVIRONMENT} cdn"
+    echo "========================================"
+    ;;
 
   networking)
     deploy_stack networking
@@ -106,61 +183,17 @@ case "${STACK}" in
   ecr)
     deploy_stack ecr
     show_outputs ecr
+    echo ""
+    echo "========================================"
+    echo " Building and pushing backend image (deploy-backend.sh)"
+    echo " Maven + Docker build + docker push logs follow below."
+    echo "========================================"
+    "${SCRIPT_DIR}/deploy-backend.sh" "${ENVIRONMENT}"
     ;;
   push)
-      # Build the backend JAR, package a Docker image, push to ECR, and force a new ECS deployment.
-      BACKEND_DIR="${SCRIPT_DIR}/../../rutaUQ-backend"
-
-      # 1. Resolve ECR repository URI from the ECR stack outputs
-      ECR_STACK="${PROJECT}-${ENVIRONMENT}-ecr"
-      echo "Fetching ECR repository URI from stack: ${ECR_STACK}"
-      REPO_URI=$(aws cloudformation describe-stacks \
-        --stack-name "${ECR_STACK}" --region "${REGION}" \
-        --query "Stacks[0].Outputs[?OutputKey=='BackendRepositoryUri'].OutputValue" \
-        --output text)
-      if [[ -z "${REPO_URI}" || "${REPO_URI}" == "None" ]]; then
-        echo "ERROR: Could not resolve BackendRepositoryUri from stack '${ECR_STACK}'."
-        echo "Make sure the ECR stack is deployed: $0 ${ENVIRONMENT} ecr"
-        exit 1
-      fi
-      echo "ECR repo: ${REPO_URI}"
-
-      # 2. Build the fat JAR
-      echo ""
-      echo "Building JAR (mvn package -DskipTests)..."
-      (export AWS_PROFILE=dev && cd "${BACKEND_DIR}"  && mvn package -DskipTests -q)
-
-      # 3. Build Docker image tagged as latest
-      echo ""
-      echo "Building Docker image..."
-      docker buildx build --platform linux/amd64 --no-cache -t "${REPO_URI}:latest" --load "${BACKEND_DIR}"
-
-      # 4. Authenticate Docker to ECR
-      echo ""
-      echo "Logging in to ECR..."
-      aws ecr get-login-password --region "${REGION}" \
-        | docker login --username AWS --password-stdin "${REPO_URI%%/*}"
-
-      # 5. Push the image
-      echo ""
-      echo "Pushing image..."
-      docker push "${REPO_URI}:latest"
-      echo "Pushed: ${REPO_URI}:latest"
-
-      # 6. Force a new ECS deployment so the service pulls the new image
-      ECS_CLUSTER="${PROJECT}-${ENVIRONMENT}"
-      ECS_SERVICE="${PROJECT}-${ENVIRONMENT}-backend"
-      echo ""
-      echo "Forcing new ECS deployment (cluster=${ECS_CLUSTER}, service=${ECS_SERVICE})..."
-      aws ecs update-service \
-        --cluster  "${ECS_CLUSTER}" \
-        --service  "${ECS_SERVICE}" \
-        --force-new-deployment \
-        --region   "${REGION}" \
-        --query    "service.deployments[0].status" \
-        --output   text
-      echo "Deployment triggered."
-      ;;
+    # Build JAR + Docker image, push to ECR, force ECS deploy (see deploy-backend.sh)
+    "${SCRIPT_DIR}/deploy-backend.sh" "${ENVIRONMENT}"
+    ;;
 
   rds)
     deploy_stack rds
@@ -184,59 +217,44 @@ case "${STACK}" in
       echo " SSM parameter found."
     fi
 
-    # When CDN stack exists, inject FrontendUrl and BackendUrl from CDN outputs
-    # so ECS CORS and webhook URL stay in sync without editing ecs.json.
-    CDN_STACK="${PROJECT}-${ENVIRONMENT}-cdn"
-    EXTRA_ECS_PARAMS=""
-    if aws cloudformation describe-stacks --stack-name "${CDN_STACK}" --region "${REGION}" --query "Stacks[0].StackId" --output text 2>/dev/null; then
-      FRONTEND_URL=$(aws cloudformation describe-stacks --stack-name "${CDN_STACK}" --region "${REGION}" \
-        --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" --output text 2>/dev/null || true)
-      API_HTTPS_URL=$(aws cloudformation describe-stacks --stack-name "${CDN_STACK}" --region "${REGION}" \
-        --query "Stacks[0].Outputs[?OutputKey=='ApiHttpsUrl'].OutputValue" --output text 2>/dev/null || true)
-      [[ -n "${FRONTEND_URL}" && "${FRONTEND_URL}" != "None" ]] && EXTRA_ECS_PARAMS="FrontendUrl=${FRONTEND_URL}"
-      if [[ -n "${API_HTTPS_URL}" && "${API_HTTPS_URL}" != "None" ]]; then
-        BACKEND_URL="${API_HTTPS_URL%/api/v1}"
-        EXTRA_ECS_PARAMS="${EXTRA_ECS_PARAMS} BackendUrl=${BACKEND_URL}"
-      fi
-      [[ -n "${EXTRA_ECS_PARAMS}" ]] && echo " Injecting from CDN: FrontendUrl, BackendUrl"
-    fi
-    deploy_stack ecs "${EXTRA_ECS_PARAMS}"
+    deploy_stack ecs
     show_outputs ecs
     ;;
 
   cdn)
     deploy_stack cdn
     show_outputs cdn
+    print_dns_instructions
+    "${SCRIPT_DIR}/deploy-frontend.sh" "${ENVIRONMENT}"
     ;;
   push-frontend)
-      # Delegates entirely to deploy-frontend.sh which:
-      #   1. Reads ApiUrl from the ECS stack and writes .env.production
-      #   2. Builds the Next.js static export (npm run build)
-      #   3. Syncs the ./out directory to S3
-      #   4. Invalidates the CloudFront distribution
-      "${SCRIPT_DIR}/deploy-frontend.sh" "${ENVIRONMENT}"
-      ;;
+        # Delegates entirely to deploy-frontend.sh which:
+        #   1. Reads ApiUrl from the ECS stack and writes .env.production
+        #   2. Builds the Next.js static export (npm run build)
+        #   3. Syncs the ./out directory to S3
+        #   4. Invalidates the CloudFront distribution
+        "${SCRIPT_DIR}/deploy-frontend.sh" "${ENVIRONMENT}"
+        ;;
   all)
-    # Dependency order: networking → ecr → rds → ecs → cdn
-    # Then re-deploy ECS so it picks up FrontendUrl and BackendUrl from CDN.
+    # Dependency order: certificate → networking → ecr → rds → ecs → cdn
+    # Then re-deploy ECS to inject FrontendUrl + BackendUrl from CDN.
+    deploy_stack certificate
     deploy_stack networking
     deploy_stack ecr
+    echo ""
+    echo "========================================"
+    echo " Building and pushing backend image (deploy-backend.sh)"
+    echo "========================================"
+    "${SCRIPT_DIR}/deploy-backend.sh" "${ENVIRONMENT}"
     deploy_stack rds
     deploy_stack ecs
     deploy_stack cdn
-    # Inject CDN outputs into ECS (CORS + webhook URL)
-    CDN_STACK="${PROJECT}-${ENVIRONMENT}-cdn"
-    EXTRA_ECS_PARAMS=""
-    FRONTEND_URL=$(aws cloudformation describe-stacks --stack-name "${CDN_STACK}" --region "${REGION}" \
-      --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" --output text 2>/dev/null || true)
-    API_HTTPS_URL=$(aws cloudformation describe-stacks --stack-name "${CDN_STACK}" --region "${REGION}" \
-      --query "Stacks[0].Outputs[?OutputKey=='ApiHttpsUrl'].OutputValue" --output text 2>/dev/null || true)
-    [[ -n "${FRONTEND_URL}" && "${FRONTEND_URL}" != "None" ]] && EXTRA_ECS_PARAMS="FrontendUrl=${FRONTEND_URL}"
-    if [[ -n "${API_HTTPS_URL}" && "${API_HTTPS_URL}" != "None" ]]; then
-      BACKEND_URL="${API_HTTPS_URL%/api/v1}"
-      EXTRA_ECS_PARAMS="${EXTRA_ECS_PARAMS} BackendUrl=${BACKEND_URL}"
-    fi
-    [[ -n "${EXTRA_ECS_PARAMS}" ]] && deploy_stack ecs "${EXTRA_ECS_PARAMS}"
+    print_dns_instructions
+    echo ""
+    echo "========================================"
+    echo " Building and pushing frontend (deploy-frontend.sh)"
+    echo "========================================"
+    "${SCRIPT_DIR}/deploy-frontend.sh" "${ENVIRONMENT}"
     echo ""
     echo "========================================"
     echo " All stacks deployed successfully"
@@ -251,7 +269,7 @@ case "${STACK}" in
   *)
     echo "Error: unknown stack '${STACK}'"
     echo ""
-    echo "Usage: $0 <environment> <networking|ecr|rds|ecs|push|cdn|push-frontend|all>"
+    echo "Usage: $0 <environment> <certificate|networking|ecr|rds|ecs|push|cdn|push-frontend|all>"
     echo "Example: $0 dev all"
     exit 1
     ;;

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import Loader from "@/components/ui/Loader";
 import Card from "@/components/ui/Card";
 
 export default function AdminUsersPage() {
   const loading = useRequireRole(["ADMIN"]);
+  const t = useTranslations("admin.users");
 
   if (loading) return <Loader fullPage />;
 
@@ -14,16 +16,14 @@ export default function AdminUsersPage() {
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Users</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Registered platform users.
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+          <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
         </div>
         <Link
           href="/admin"
           className="text-sm font-medium text-neutral-500 hover:text-neutral-700"
         >
-          ← Overview
+          {t("backToOverview")}
         </Link>
       </div>
 
@@ -45,12 +45,8 @@ export default function AdminUsersPage() {
             </svg>
           </div>
           <div>
-            <p className="font-medium text-neutral-700">
-              User listing coming soon
-            </p>
-            <p className="mt-1 text-sm text-neutral-400">
-              This requires the admin user-management endpoint (Backend Phase 8).
-            </p>
+            <p className="font-medium text-neutral-700">{t("comingSoon")}</p>
+            <p className="mt-1 text-sm text-neutral-400">{t("comingSoonDesc")}</p>
           </div>
         </div>
       </Card>

@@ -6,29 +6,31 @@ import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import { authService } from "@/services/auth.service";
 import { getErrorMessage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Loader from "@/components/ui/Loader";
 
-const schema = z
-  .object({
-    newPassword: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
-
-type FormValues = z.infer<typeof schema>;
-
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const t = useTranslations("auth.resetPassword");
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const schema = z
+    .object({
+      newPassword: z.string().min(8, t("passwordMin")),
+      confirmPassword: z.string().min(1, t("confirmRequired")),
+    })
+    .refine((data) => data.newPassword === data.confirmPassword, {
+      message: t("passwordMismatch"),
+      path: ["confirmPassword"],
+    });
+
+  type FormValues = z.infer<typeof schema>;
 
   const {
     register,
@@ -38,7 +40,7 @@ function ResetPasswordContent() {
 
   const onSubmit = async (values: FormValues) => {
     if (!token) {
-      setServerError("Invalid reset link. Please request a new one.");
+      setServerError(t("invalidLinkError"));
       return;
     }
     setServerError(null);
@@ -58,13 +60,11 @@ function ResetPasswordContent() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 className="text-xl font-semibold text-neutral-900">Password updated!</h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          Your password has been reset. You can now log in.
-        </p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("successTitle")}</h1>
+        <p className="mt-2 text-sm text-neutral-500">{t("successDesc")}</p>
         <Link href="/login" className="mt-6 block">
           <Button variant="primary" className="w-full">
-            Go to login
+            {t("goToLogin")}
           </Button>
         </Link>
       </div>
@@ -74,13 +74,11 @@ function ResetPasswordContent() {
   if (!token) {
     return (
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-neutral-900">Invalid link</h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          This reset link is missing a token. Please request a new one.
-        </p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("invalidLinkTitle")}</h1>
+        <p className="mt-2 text-sm text-neutral-500">{t("invalidLinkDesc")}</p>
         <Link href="/forgot-password" className="mt-6 block">
           <Button variant="outline" className="w-full">
-            Request new link
+            {t("requestNewLink")}
           </Button>
         </Link>
       </div>
@@ -90,27 +88,25 @@ function ResetPasswordContent() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Set new password</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Choose a strong password for your account.
-        </p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <Input
-          label="New password"
+          label={t("newPasswordLabel")}
           type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
+          placeholder={t("placeholder")}
           error={errors.newPassword?.message}
           {...register("newPassword")}
         />
 
         <Input
-          label="Confirm password"
+          label={t("confirmPasswordLabel")}
           type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
+          placeholder={t("placeholder")}
           error={errors.confirmPassword?.message}
           {...register("confirmPassword")}
         />
@@ -122,7 +118,7 @@ function ResetPasswordContent() {
         )}
 
         <Button type="submit" loading={isSubmitting} className="mt-2 w-full">
-          Reset password
+          {t("submit")}
         </Button>
       </form>
     </>

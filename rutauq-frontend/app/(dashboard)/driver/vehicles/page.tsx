@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { VehicleSummary } from "@/types";
 import { vehiclesService } from "@/services/vehicles.service";
 import { useRequireRole } from "@/hooks/useRequireRole";
@@ -16,6 +17,7 @@ type ModalMode = { type: "create" } | { type: "edit"; vehicle: VehicleSummary };
 
 export default function VehiclesPage() {
   const loading = useRequireRole(["DRIVER", "ADMIN"]);
+  const t = useTranslations("vehicles");
 
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -55,7 +57,7 @@ export default function VehiclesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Remove this vehicle? Trips using it may be affected.")) return;
+    if (!confirm(t("confirmRemove"))) return;
     setDeletingId(id);
     try {
       await vehiclesService.remove(id);
@@ -74,13 +76,11 @@ export default function VehiclesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">My Vehicles</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Manage the vehicles you offer for trips.
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+          <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
         </div>
         <Button size="sm" onClick={() => setModal({ type: "create" })}>
-          Add vehicle
+          {t("addVehicle")}
         </Button>
       </div>
 
@@ -88,11 +88,11 @@ export default function VehiclesPage() {
         <ErrorState message={error} onRetry={fetchVehicles} />
       ) : vehicles.length === 0 ? (
         <EmptyState
-          title="No vehicles yet"
-          description="Add your first vehicle to start publishing trips."
+          title={t("noVehicles")}
+          description={t("noVehiclesDesc")}
           action={
             <Button size="sm" onClick={() => setModal({ type: "create" })}>
-              Add vehicle
+              {t("addVehicle")}
             </Button>
           }
           icon={
@@ -120,7 +120,7 @@ export default function VehiclesPage() {
                 </span>
               </div>
               <p className="mb-4 text-sm text-neutral-500">
-                {v.seats} seats
+                {v.seats} {t("seats")}
               </p>
               <div className="flex gap-2">
                 <Button
@@ -128,7 +128,7 @@ export default function VehiclesPage() {
                   size="sm"
                   onClick={() => setModal({ type: "edit", vehicle: v })}
                 >
-                  Edit
+                  {t("edit")}
                 </Button>
                 <Button
                   variant="danger"
@@ -136,7 +136,7 @@ export default function VehiclesPage() {
                   loading={deletingId === v.id}
                   onClick={() => handleDelete(v.id)}
                 >
-                  Remove
+                  {t("remove")}
                 </Button>
               </div>
             </div>
@@ -148,9 +148,9 @@ export default function VehiclesPage() {
       <Modal
         open={modal?.type === "create"}
         onClose={() => setModal(null)}
-        title="Add vehicle"
+        title={t("addModal")}
       >
-        <VehicleForm onSubmit={handleCreate} submitLabel="Add vehicle" />
+        <VehicleForm onSubmit={handleCreate} submitLabel={t("addVehicle")} />
       </Modal>
 
       {/* Edit modal */}
@@ -158,12 +158,12 @@ export default function VehiclesPage() {
         <Modal
           open
           onClose={() => setModal(null)}
-          title="Edit vehicle"
+          title={t("editModal")}
         >
           <VehicleForm
             defaultValues={vehicleToFormValues(modal.vehicle)}
             onSubmit={(data) => handleEdit(modal.vehicle.id, data)}
-            submitLabel="Save changes"
+            submitLabel={t("saveChanges")}
           />
         </Modal>
       )}

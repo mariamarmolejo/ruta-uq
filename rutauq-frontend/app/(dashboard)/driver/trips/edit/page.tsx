@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { TripResponse } from "@/types";
 import { tripsService } from "@/services/trips.service";
 import { useRequireRole } from "@/hooks/useRequireRole";
@@ -16,6 +17,7 @@ function EditTrip() {
   const id = searchParams.get("id") ?? "";
   const roleLoading = useRequireRole(["DRIVER", "ADMIN"]);
   const router = useRouter();
+  const t = useTranslations("editTrip");
 
   const [trip, setTrip] = useState<TripResponse | null>(null);
   const [fetching, setFetching] = useState(true);
@@ -41,7 +43,7 @@ function EditTrip() {
   return (
     <div className="mx-auto max-w-xl">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Edit Trip</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
         <p className="mt-1 text-sm text-neutral-500">
           {trip.origin} → {trip.destination}
         </p>
@@ -62,7 +64,7 @@ function EditTrip() {
             await tripsService.update(id, data);
             router.push("/driver/trips");
           }}
-          submitLabel="Save changes"
+          submitLabel={t("saveChanges")}
         />
       </div>
     </div>

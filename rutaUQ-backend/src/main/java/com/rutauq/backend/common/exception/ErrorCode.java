@@ -41,6 +41,10 @@ public enum ErrorCode {
     PAYMENT_INVALID_STATUS("Cannot process payment in the current reservation status", HttpStatus.CONFLICT),
     MERCADO_PAGO_ERROR("Mercado Pago API returned an error", HttpStatus.BAD_GATEWAY),
 
+    // Refunds
+    REFUND_NOT_FOUND("Refund not found", HttpStatus.NOT_FOUND),
+    REFUND_ALREADY_EXISTS("A refund has already been requested for this reservation", HttpStatus.CONFLICT),
+
     // Google OAuth (Phase Google)
     GOOGLE_TOKEN_INVALID("Google ID token is invalid or expired", HttpStatus.UNAUTHORIZED);
 

@@ -3,11 +3,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 
 function CheckEmailContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
+  const t = useTranslations("auth.checkEmail");
 
   return (
     <div className="text-center">
@@ -17,30 +19,28 @@ function CheckEmailContent() {
         </svg>
       </div>
 
-      <h1 className="text-xl font-semibold text-neutral-900">Check your inbox</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
       <p className="mt-2 text-sm text-neutral-500">
-        We sent a verification link to{" "}
+        {t("sentTo")}{" "}
         {email ? (
           <span className="font-medium text-neutral-700">{email}</span>
         ) : (
-          "your email address"
+          t("sentToFallback")
         )}
         .
       </p>
-      <p className="mt-1 text-sm text-neutral-500">
-        Click the link in the email to activate your account.
-      </p>
+      <p className="mt-1 text-sm text-neutral-500">{t("clickLink")}</p>
 
       <div className="mt-6 flex flex-col gap-3">
         <Link href="/login">
           <Button variant="primary" className="w-full">
-            Go to login
+            {t("goToLogin")}
           </Button>
         </Link>
         <p className="text-xs text-neutral-400">
-          Didn&apos;t receive it? Check your spam folder or{" "}
+          {t("notReceived")}{" "}
           <Link href="/login" className="text-primary-600 hover:underline">
-            request a new one from the login page
+            {t("requestNew")}
           </Link>
           .
         </p>

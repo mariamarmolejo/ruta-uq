@@ -1,11 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Calendar } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ReservationResponse } from "@/types";
 import {
   formatCurrency,
   formatDateShort,
   RESERVATION_STATUS_VARIANT,
-  RESERVATION_STATUS_LABEL,
 } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -16,6 +18,8 @@ interface ReservationCardProps {
 
 export default function ReservationCard({ reservation }: ReservationCardProps) {
   const { trip } = reservation;
+  const t = useTranslations("reservations");
+  const tStatus = useTranslations("reservationStatus");
 
   return (
     <Link href={`/reservations/detail?id=${reservation.id}`}>
@@ -33,7 +37,7 @@ export default function ReservationCard({ reservation }: ReservationCardProps) {
               </span>
             </div>
             <Badge variant={RESERVATION_STATUS_VARIANT[reservation.status]}>
-              {RESERVATION_STATUS_LABEL[reservation.status]}
+              {tStatus(reservation.status)}
             </Badge>
           </div>
 
@@ -44,8 +48,8 @@ export default function ReservationCard({ reservation }: ReservationCardProps) {
               {formatDateShort(trip.departureTime)}
             </span>
             <span>
-              {reservation.seatsReserved} seat
-              {reservation.seatsReserved !== 1 ? "s" : ""}
+              {reservation.seatsReserved}{" "}
+              {reservation.seatsReserved !== 1 ? t("seats") : t("seat")}
             </span>
             <span className="font-medium text-neutral-700">
               {formatCurrency(reservation.totalPrice)}

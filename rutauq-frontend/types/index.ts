@@ -218,3 +218,19 @@ export interface PseBankOption {
   id: string;
   description: string;
 }
+
+// ---- Refunds ----
+
+export type RefundStatus = "PENDING" | "PROCESSED" | "FAILED";
+
+export interface RefundResponse {
+  id: string;
+  reservationId: string;
+  paymentId: string;
+  amount: number;
+  status: RefundStatus;
+  reason: string | null;
+  mpRefundId: string | null;
+  requestedAt: string;
+  processedAt: string | null;
+}

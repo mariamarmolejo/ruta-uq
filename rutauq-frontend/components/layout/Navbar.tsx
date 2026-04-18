@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/stores/auth.store";
 import { cn } from "@/lib/utils";
+import LanguageToggle from "./LanguageToggle";
 
 interface NavbarProps {
   className?: string;
@@ -12,6 +14,7 @@ interface NavbarProps {
 export default function Navbar({ className }: NavbarProps) {
   const router = useRouter();
   const { user, isAuthenticated, clearAuth } = useAuthStore();
+  const t = useTranslations();
 
   const handleLogout = () => {
     clearAuth();
@@ -44,12 +47,13 @@ export default function Navbar({ className }: NavbarProps) {
             </svg>
           </div>
           <span className="text-base font-semibold text-neutral-900">
-            Ruta Compartida UQ
+            {t("brand")}
           </span>
         </Link>
 
         {/* Nav actions */}
         <div className="flex items-center gap-3">
+          <LanguageToggle />
           {isAuthenticated && user ? (
             <>
               <span className="hidden text-sm text-neutral-600 sm:block">
@@ -59,7 +63,7 @@ export default function Navbar({ className }: NavbarProps) {
                 onClick={handleLogout}
                 className="rounded px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
               >
-                Logout
+                {t("nav.logout")}
               </button>
             </>
           ) : (
@@ -68,13 +72,13 @@ export default function Navbar({ className }: NavbarProps) {
                 href="/login"
                 className="rounded px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100"
               >
-                Login
+                {t("nav.login")}
               </Link>
               <Link
                 href="/register"
                 className="rounded bg-primary-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-700"
               >
-                Register
+                {t("nav.register")}
               </Link>
             </>
           )}

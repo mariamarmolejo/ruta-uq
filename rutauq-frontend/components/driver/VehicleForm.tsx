@@ -4,24 +4,20 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import type { CreateVehicleRequest, VehicleSummary } from "@/types";
 import { getErrorMessage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
-const vehicleSchema = z.object({
-  brand: z.string().min(1, "Brand is required"),
-  model: z.string().min(1, "Model is required"),
-  year: z
-    .number({ message: "Enter a year" })
-    .min(1990)
-    .max(new Date().getFullYear() + 1),
-  color: z.string().min(1, "Color is required"),
-  plate: z.string().min(3, "Plate is required"),
-  seats: z.number({ message: "Enter a number" }).min(1).max(20),
-});
-
-type VehicleFormValues = z.infer<typeof vehicleSchema>;
+type VehicleFormValues = {
+  brand: string;
+  model: string;
+  year: number;
+  color: string;
+  plate: string;
+  seats: number;
+};
 
 interface VehicleFormProps {
   defaultValues?: Partial<VehicleFormValues>;
@@ -32,9 +28,22 @@ interface VehicleFormProps {
 export default function VehicleForm({
   defaultValues,
   onSubmit,
-  submitLabel = "Save vehicle",
+  submitLabel,
 }: VehicleFormProps) {
+  const t = useTranslations("vehicleForm");
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const vehicleSchema = z.object({
+    brand: z.string().min(1, t("brandRequired")),
+    model: z.string().min(1, t("modelRequired")),
+    year: z
+      .number({ message: t("yearRequired") })
+      .min(1990)
+      .max(new Date().getFullYear() + 1),
+    color: z.string().min(1, t("colorRequired")),
+    plate: z.string().min(3, t("plateRequired")),
+    seats: z.number({ message: t("seatsRequired") }).min(1).max(20),
+  });
 
   const {
     register,
@@ -62,14 +71,14 @@ export default function VehicleForm({
     >
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="Brand"
-          placeholder="e.g. Chevrolet"
+          label={t("brand")}
+          placeholder={t("brandPlaceholder")}
           error={errors.brand?.message}
           {...register("brand")}
         />
         <Input
-          label="Model"
-          placeholder="e.g. Spark"
+          label={t("model")}
+          placeholder={t("modelPlaceholder")}
           error={errors.model?.message}
           {...register("model")}
         />
@@ -77,15 +86,15 @@ export default function VehicleForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="Year"
+          label={t("year")}
           type="number"
           placeholder={String(new Date().getFullYear())}
           error={errors.year?.message}
           {...register("year", { valueAsNumber: true })}
         />
         <Input
-          label="Color"
-          placeholder="e.g. White"
+          label={t("color")}
+          placeholder={t("colorPlaceholder")}
           error={errors.color?.message}
           {...register("color")}
         />
@@ -93,17 +102,17 @@ export default function VehicleForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="Plate"
-          placeholder="e.g. ABC123"
+          label={t("plate")}
+          placeholder={t("platePlaceholder")}
           error={errors.plate?.message}
           {...register("plate")}
         />
         <Input
-          label="Seats"
+          label={t("seats")}
           type="number"
           min={1}
           max={20}
-          placeholder="4"
+          placeholder={t("seatsPlaceholder")}
           error={errors.seats?.message}
           {...register("seats", { valueAsNumber: true })}
         />
@@ -116,7 +125,7 @@ export default function VehicleForm({
       )}
 
       <Button type="submit" loading={isSubmitting} className="w-full">
-        {submitLabel}
+        {submitLabel ?? t("save")}
       </Button>
     </form>
   );

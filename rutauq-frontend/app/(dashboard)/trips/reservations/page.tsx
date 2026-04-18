@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { ReservationResponse, ReservationStatus } from "@/types";
 import { reservationsService } from "@/services/reservations.service";
 import { useRequireRole } from "@/hooks/useRequireRole";
@@ -10,7 +11,6 @@ import {
   formatDate,
   getErrorMessage,
   RESERVATION_STATUS_VARIANT,
-  RESERVATION_STATUS_LABEL,
 } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -25,6 +25,8 @@ function TripReservations() {
   const id = searchParams.get("id") ?? "";
   const roleLoading = useRequireRole(["DRIVER", "ADMIN"]);
   const router = useRouter();
+  const t = useTranslations("tripReservations");
+  const tStatus = useTranslations("reservationStatus");
 
   const [reservations, setReservations] = useState<ReservationResponse[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -34,7 +36,7 @@ function TripReservations() {
 
   const fetchReservations = useCallback(async () => {
     if (!id) {
-      setError("No trip ID provided.");
+      setError(t("noTripId"));
       setFetching(false);
       return;
     }
@@ -47,14 +49,14 @@ function TripReservations() {
     } finally {
       setFetching(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     if (!roleLoading) fetchReservations();
   }, [roleLoading, fetchReservations]);
 
   const handleCancel = async (reservationId: string) => {
-    if (!confirm("Cancel this reservation and release the seats?")) return;
+    if (!confirm(t("confirmCancel"))) return;
     setCancelError(null);
     setCancellingId(reservationId);
     try {
@@ -80,14 +82,14 @@ function TripReservations() {
           onClick={() => router.back()}
           className="text-sm text-neutral-500 hover:text-neutral-800"
         >
-          ← Back
+          {t("back")}
         </button>
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">
-            Trip Reservations
-          </h1>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
           <p className="text-sm text-neutral-500">
-            {reservations.length} reservation{reservations.length !== 1 ? "s" : ""}
+            {reservations.length === 1
+              ? t("count", { n: reservations.length })
+              : t("countPlural", { n: reservations.length })}
           </p>
         </div>
       </div>
@@ -102,20 +104,20 @@ function TripReservations() {
         <ErrorState message={error} onRetry={fetchReservations} />
       ) : reservations.length === 0 ? (
         <EmptyState
-          title="No reservations yet"
-          description="Passengers haven't booked seats on this trip yet."
+          title={t("noReservations")}
+          description={t("noReservationsDesc")}
         />
       ) : (
         <div className="rounded-lg border border-neutral-200 bg-white shadow-card">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-100 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
-                <th className="px-5 py-3">Passenger</th>
-                <th className="px-5 py-3">Seats</th>
-                <th className="px-5 py-3">Total</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Booked</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3">{t("colPassenger")}</th>
+                <th className="px-5 py-3">{t("colSeats")}</th>
+                <th className="px-5 py-3">{t("colTotal")}</th>
+                <th className="px-5 py-3">{t("colStatus")}</th>
+                <th className="px-5 py-3">{t("colBooked")}</th>
+                <th className="px-5 py-3 text-right">{t("colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -133,7 +135,7 @@ function TripReservations() {
                   </td>
                   <td className="px-5 py-3">
                     <Badge variant={RESERVATION_STATUS_VARIANT[r.status]}>
-                      {RESERVATION_STATUS_LABEL[r.status]}
+                      {tStatus(r.status)}
                     </Badge>
                   </td>
                   <td className="px-5 py-3 text-neutral-400">{formatDate(r.createdAt)}</td>
@@ -146,7 +148,7 @@ function TripReservations() {
                         disabled={cancellingId !== null}
                         onClick={() => handleCancel(r.id)}
                       >
-                        Cancel
+                        {t("cancel")}
                       </Button>
                     )}
                   </td>

@@ -1,0 +1,7 @@
+[
+  { "ParameterKey": "Project",     "ParameterValue": "rutauq" },
+  { "ParameterKey": "Environment", "ParameterValue": "dev" },
+  { "ParameterKey": "ApexDomain",  "ParameterValue": "rutauq.online" },
+  { "ParameterKey": "WwwDomain",   "ParameterValue": "www.rutauq.online" },
+  { "ParameterKey": "ApiDomain",   "ParameterValue": "api.rutauq.online" }
+]

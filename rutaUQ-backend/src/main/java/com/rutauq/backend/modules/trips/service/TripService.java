@@ -14,6 +14,7 @@ import com.rutauq.backend.modules.trips.mapper.TripMapper;
 import com.rutauq.backend.modules.trips.repository.TripRepository;
 import com.rutauq.backend.modules.trips.repository.TripSpecification;
 import com.rutauq.backend.modules.reservations.service.ReservationService;
+import com.rutauq.backend.modules.refunds.service.RefundService;
 import com.rutauq.backend.modules.vehicles.domain.Vehicle;
 import com.rutauq.backend.modules.vehicles.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class TripService {
     private final UserRepository userRepository;
     private final TripMapper tripMapper;
     private final ReservationService reservationService;
+    private final RefundService refundService;
 
     @Transactional
     public TripResponse createTrip(User currentUser, CreateTripRequest request) {
@@ -172,6 +174,8 @@ public class TripService {
         trip.setStatus(TripStatus.CANCELLED);
         tripRepository.save(trip);
         log.info("Trip {} cancelled by driver {}", tripId, currentUser.getEmail());
+
+        refundService.refundAllForCancelledTrip(tripId);
     }
 
     /** COP amounts for Mercado Pago must be whole pesos (no decimals). */

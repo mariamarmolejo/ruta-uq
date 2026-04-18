@@ -1,11 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Calendar, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { TripResponse } from "@/types";
 import {
   formatCurrency,
   formatDateShort,
   TRIP_STATUS_VARIANT,
-  TRIP_STATUS_LABEL,
 } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -15,6 +17,9 @@ interface TripCardProps {
 }
 
 export default function TripCard({ trip }: TripCardProps) {
+  const t = useTranslations("trips");
+  const tStatus = useTranslations("tripStatus");
+
   return (
     <Link href={`/trips/detail?id=${trip.id}`}>
       <Card hoverable padding="none">
@@ -31,7 +36,7 @@ export default function TripCard({ trip }: TripCardProps) {
               </span>
             </div>
             <Badge variant={TRIP_STATUS_VARIANT[trip.status]}>
-              {TRIP_STATUS_LABEL[trip.status]}
+              {tStatus(trip.status)}
             </Badge>
           </div>
 
@@ -44,12 +49,13 @@ export default function TripCard({ trip }: TripCardProps) {
 
             <span className="flex items-center gap-1.5">
               <Users className="h-4 w-4 text-neutral-400" />
-              {trip.availableSeats} seat{trip.availableSeats !== 1 ? "s" : ""}
+              {trip.availableSeats}{" "}
+              {trip.availableSeats !== 1 ? t("seats") : t("seat")}
             </span>
 
             <span className="flex items-center gap-1.5 font-medium text-neutral-700">
               {formatCurrency(trip.pricePerSeat)}
-              <span className="font-normal text-neutral-400">/ seat</span>
+              <span className="font-normal text-neutral-400">{t("perSeat")}</span>
             </span>
           </div>
 
