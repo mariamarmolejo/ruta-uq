@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
 import { Input, Button } from '@/components/ui';
+import { GoogleLoginButton } from '@/components/GoogleLoginButton';
 import { loginSchema, type LoginForm } from '@/lib/validations';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/auth.store';
@@ -21,6 +22,7 @@ import { getErrorMessage } from '@/lib/utils';
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
 
   const {
@@ -37,10 +39,14 @@ export default function LoginScreen() {
     try {
       const response = await authService.login(data);
       await setAuth(response);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       router.replace('/(app)/trips');
     } catch (err) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
       Toast.show({
         type: 'error',
         text1: 'Error al iniciar sesión',
@@ -49,6 +55,33 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleToken = async (idToken: string) => {
+    setGoogleLoading(true);
+    try {
+      const result = await authService.googleLogin(idToken);
+      await setAuth(result);
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      router.replace('/(app)/trips');
+    } catch (err) {
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      Toast.show({
+        type: 'error',
+        text1: 'Error al iniciar sesión con Google',
+        text2: getErrorMessage(err),
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = (message: string) => {
+    Toast.show({ type: 'error', text1: 'Error con Google', text2: message });
   };
 
   return (
@@ -134,6 +167,18 @@ export default function LoginScreen() {
             >
               Iniciar sesión
             </Button>
+
+            <View className="flex-row items-center my-4">
+              <View className="flex-1 h-px bg-neutral-200" />
+              <Text className="mx-3 text-sm text-neutral-400">o</Text>
+              <View className="flex-1 h-px bg-neutral-200" />
+            </View>
+
+            <GoogleLoginButton
+              loading={googleLoading}
+              onToken={handleGoogleToken}
+              onError={handleGoogleError}
+            />
           </View>
 
           {/* Register link */}

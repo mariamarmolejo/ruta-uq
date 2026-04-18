@@ -14,15 +14,17 @@ const apiClient = axios.create({
   timeout: 15000,
 });
 
-// Attach JWT from SecureStore on every request
+// Attach JWT on every request — SecureStore on native, Zustand store on web
 apiClient.interceptors.request.use(async (config) => {
+  let token: string | null = null;
   try {
-    const token = await SecureStore.getItemAsync('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    token = await SecureStore.getItemAsync('access_token');
   } catch {
-    // SecureStore unavailable — continue without token
+    // SecureStore unavailable on web — fall back to in-memory store
+    token = useAuthStore.getState().token;
+  }
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });

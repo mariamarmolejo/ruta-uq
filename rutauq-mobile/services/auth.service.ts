@@ -18,6 +18,11 @@ export const authService = {
     return res.data.data;
   },
 
+  async googleLogin(idToken: string): Promise<AuthResponse> {
+    const res = await apiClient.post<ApiResponse<AuthResponse>>('/auth/google', { idToken });
+    return res.data.data;
+  },
+
   async verifyEmail(token: string): Promise<void> {
     await apiClient.get('/auth/verify-email', { params: { token } });
   },
