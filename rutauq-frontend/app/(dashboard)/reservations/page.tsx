@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ReservationResponse } from "@/types";
 import { reservationsService } from "@/services/reservations.service";
 import { getErrorMessage } from "@/lib/utils";
@@ -10,6 +11,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 
 export default function ReservationsPage() {
+  const t = useTranslations("reservations");
   const [reservations, setReservations] = useState<ReservationResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,20 +37,16 @@ export default function ReservationsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">
-          My Reservations
-        </h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Track all your booked seats.
-        </p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </div>
 
       {error ? (
         <ErrorState message={error} onRetry={fetch} />
       ) : reservations.length === 0 ? (
         <EmptyState
-          title="No reservations yet"
-          description="Browse available trips and book your first seat."
+          title={t("noReservations")}
+          description={t("noReservationsDesc")}
           icon={
             <svg
               className="h-6 w-6"

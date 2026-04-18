@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import type { TripResponse } from "@/types";
 import { tripsService } from "@/services/trips.service";
 import { reservationsService } from "@/services/reservations.service";
@@ -14,19 +15,20 @@ import Input from "@/components/ui/Input";
 import Loader from "@/components/ui/Loader";
 import ErrorState from "@/components/ui/ErrorState";
 
-const schema = z.object({
-  seatsReserved: z
-    .number({ message: "Select the number of seats" })
-    .min(1, "At least 1 seat")
-    .max(10, "Maximum 10 seats"),
-});
-
-type FormValues = z.infer<typeof schema>;
-
 function NewReservationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tripId = searchParams.get("tripId");
+  const t = useTranslations("newReservation");
+
+  const schema = z.object({
+    seatsReserved: z
+      .number({ message: t("seatsRequired") })
+      .min(1, t("atLeastOne"))
+      .max(10, t("maxTen")),
+  });
+
+  type FormValues = z.infer<typeof schema>;
 
   const [trip, setTrip] = useState<TripResponse | null>(null);
   const [fetching, setFetching] = useState(true);
@@ -47,7 +49,7 @@ function NewReservationForm() {
 
   useEffect(() => {
     if (!tripId) {
-      setFetchError("No trip specified. Go back and select a trip.");
+      setFetchError(t("noTrip"));
       setFetching(false);
       return;
     }
@@ -56,7 +58,7 @@ function NewReservationForm() {
       .then(setTrip)
       .catch((err) => setFetchError(getErrorMessage(err)))
       .finally(() => setFetching(false));
-  }, [tripId]);
+  }, [tripId, t]);
 
   const onSubmit = async (values: FormValues) => {
     if (!tripId) return;
@@ -74,16 +76,16 @@ function NewReservationForm() {
 
   if (fetching) return <Loader fullPage />;
   if (fetchError || !trip)
-    return <ErrorState message={fetchError ?? "Trip not found."} />;
+    return <ErrorState message={fetchError ?? t("tripNotFound")} />;
 
   if (trip.status !== "SCHEDULED" || trip.availableSeats === 0) {
     return (
       <ErrorState
-        title="Trip unavailable"
+        title={t("tripUnavailable")}
         message={
           trip.availableSeats === 0
-            ? "There are no seats left on this trip."
-            : "This trip is no longer accepting reservations."
+            ? t("noSeatsLeft")
+            : t("notAccepting")
         }
       />
     );
@@ -94,18 +96,14 @@ function NewReservationForm() {
   return (
     <div className="mx-auto max-w-lg">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-neutral-900">
-          Reserve a Seat
-        </h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Confirm how many seats you need.
-        </p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </div>
 
       {/* Trip summary card */}
       <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-5 shadow-card">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          Trip
+          {t("tripSection")}
         </p>
         <div className="flex items-center gap-2 text-base font-semibold text-neutral-900">
           <span>{trip.origin}</span>
@@ -126,25 +124,21 @@ function NewReservationForm() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-neutral-500">
           <div>
-            <p className="text-xs text-neutral-400">Departure</p>
-            <p className="font-medium text-neutral-700">
-              {formatDate(trip.departureTime)}
-            </p>
+            <p className="text-xs text-neutral-400">{t("departure")}</p>
+            <p className="font-medium text-neutral-700">{formatDate(trip.departureTime)}</p>
           </div>
           <div>
-            <p className="text-xs text-neutral-400">Price per seat</p>
-            <p className="font-medium text-neutral-700">
-              {formatCurrency(trip.pricePerSeat)}
-            </p>
+            <p className="text-xs text-neutral-400">{t("pricePerSeat")}</p>
+            <p className="font-medium text-neutral-700">{formatCurrency(trip.pricePerSeat)}</p>
           </div>
           <div>
-            <p className="text-xs text-neutral-400">Driver</p>
+            <p className="text-xs text-neutral-400">{t("driver")}</p>
             <p className="font-medium text-neutral-700">
               {trip.driver.firstName} {trip.driver.lastName}
             </p>
           </div>
           <div>
-            <p className="text-xs text-neutral-400">Available seats</p>
+            <p className="text-xs text-neutral-400">{t("availableSeats")}</p>
             <p className="font-medium text-neutral-700">{trip.availableSeats}</p>
           </div>
         </div>
@@ -157,12 +151,16 @@ function NewReservationForm() {
         className="rounded-lg border border-neutral-200 bg-white p-5 shadow-card"
       >
         <Input
-          label="Number of seats"
+          label={t("numberOfSeats")}
           type="number"
           min={1}
           max={trip.availableSeats}
           error={errors.seatsReserved?.message}
-          helperText={`Maximum ${trip.availableSeats} seat${trip.availableSeats !== 1 ? "s" : ""} available`}
+          helperText={
+            trip.availableSeats === 1
+              ? t("maxSeats", { count: trip.availableSeats })
+              : t("maxSeatsPlural", { count: trip.availableSeats })
+          }
           {...register("seatsReserved", { valueAsNumber: true })}
         />
 
@@ -170,17 +168,17 @@ function NewReservationForm() {
         <div className="mt-5 rounded-md bg-neutral-50 p-4">
           <div className="flex items-center justify-between text-sm text-neutral-600">
             <span>
-              {Number.isNaN(seats) ? 1 : seats} seat
-              {(Number.isNaN(seats) ? 1 : seats) !== 1 ? "s" : ""} ×{" "}
-              {formatCurrency(trip.pricePerSeat)}
+              {Number.isNaN(seats) ? 1 : seats}{" "}
+              {(Number.isNaN(seats) ? 1 : seats) !== 1
+                ? "seats"
+                : "seat"}{" "}
+              × {formatCurrency(trip.pricePerSeat)}
             </span>
             <span className="text-base font-semibold text-neutral-900">
               {formatCurrency(total)}
             </span>
           </div>
-          <p className="mt-1 text-xs text-neutral-400">
-            Payment is processed after confirmation.
-          </p>
+          <p className="mt-1 text-xs text-neutral-400">{t("paymentNote")}</p>
         </div>
 
         {serverError && (
@@ -195,10 +193,10 @@ function NewReservationForm() {
             variant="outline"
             onClick={() => router.back()}
           >
-            Back
+            {t("back")}
           </Button>
           <Button type="submit" loading={isSubmitting} className="flex-1">
-            Confirm reservation — {formatCurrency(total)}
+            {t("confirm", { price: formatCurrency(total) })}
           </Button>
         </div>
       </form>

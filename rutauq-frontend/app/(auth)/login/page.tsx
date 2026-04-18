@@ -6,25 +6,29 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AxiosError } from "axios";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/auth.service";
 import { getErrorMessage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-
-const loginSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 
 export default function LoginPage() {
+  const t = useTranslations("auth.login");
+  const tAuth = useTranslations("auth");
   const { login } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
+
+  const loginSchema = z.object({
+    email: z.string().email(t("emailRequired")),
+    password: z.string().min(1, t("passwordRequired")),
+  });
+
+  type LoginFormValues = z.infer<typeof loginSchema>;
 
   const {
     register,
@@ -71,28 +75,26 @@ export default function LoginPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Welcome back</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Sign in to your account
-        </p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <Input
-          label="Email"
+          label={t("emailLabel")}
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           error={errors.email?.message}
           {...register("email")}
         />
 
         <div className="flex flex-col gap-1">
           <Input
-            label="Password"
+            label={t("passwordLabel")}
             type="password"
             autoComplete="current-password"
-            placeholder="••••••••"
+            placeholder={t("passwordPlaceholder")}
             error={errors.password?.message}
             {...register("password")}
           />
@@ -101,7 +103,7 @@ export default function LoginPage() {
               href="/forgot-password"
               className="text-xs text-primary-600 hover:underline"
             >
-              Forgot password?
+              {t("forgotPassword")}
             </Link>
           </div>
         </div>
@@ -116,29 +118,39 @@ export default function LoginPage() {
                 disabled={resendLoading}
                 className="mt-1 text-sm font-medium text-red-700 underline hover:text-red-800 disabled:opacity-50"
               >
-                {resendLoading ? "Sending…" : "Resend verification email"}
+                {resendLoading ? t("sending") : t("resendVerification")}
               </button>
             )}
             {resendSent && (
               <p className="mt-1 text-sm font-medium text-green-700">
-                Verification email sent — check your inbox.
+                {t("verificationSent")}
               </p>
             )}
           </div>
         )}
 
         <Button type="submit" loading={isSubmitting} className="mt-2 w-full">
-          Sign in
+          {t("submit")}
         </Button>
       </form>
 
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-2 text-neutral-500">{tAuth("orContinueWith")}</span>
+        </div>
+      </div>
+      <GoogleLoginButton />
+
       <p className="mt-6 text-center text-sm text-neutral-500">
-        Don&apos;t have an account?{" "}
+        {t("noAccount")}{" "}
         <Link
           href="/register"
           className="font-medium text-primary-600 hover:underline"
         >
-          Create one
+          {t("createOne")}
         </Link>
       </p>
     </>

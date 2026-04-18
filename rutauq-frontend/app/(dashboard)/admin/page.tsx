@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { tripsService } from "@/services/trips.service";
 import type { TripResponse, TripStatus } from "@/types";
@@ -17,38 +18,40 @@ const STATUS_ORDER: TripStatus[] = [
   "CANCELLED",
 ];
 
-const statusConfig: Record<
-  TripStatus,
-  { label: string; bg: string; text: string; border: string }
-> = {
-  SCHEDULED: {
-    label: "Scheduled",
-    bg: "bg-primary-50",
-    text: "text-primary-700",
-    border: "border-primary-200",
-  },
-  IN_PROGRESS: {
-    label: "In Progress",
-    bg: "bg-green-50",
-    text: "text-green-700",
-    border: "border-green-200",
-  },
-  COMPLETED: {
-    label: "Completed",
-    bg: "bg-neutral-50",
-    text: "text-neutral-700",
-    border: "border-neutral-200",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    bg: "bg-red-50",
-    text: "text-red-700",
-    border: "border-red-200",
-  },
-};
-
 export default function AdminOverviewPage() {
   const loading = useRequireRole(["ADMIN"]);
+  const t = useTranslations("admin.overview");
+  const tStatus = useTranslations("tripStatus");
+
+  const statusConfig: Record<
+    TripStatus,
+    { label: string; bg: string; text: string; border: string }
+  > = {
+    SCHEDULED: {
+      label: tStatus("SCHEDULED"),
+      bg: "bg-primary-50",
+      text: "text-primary-700",
+      border: "border-primary-200",
+    },
+    IN_PROGRESS: {
+      label: tStatus("IN_PROGRESS"),
+      bg: "bg-green-50",
+      text: "text-green-700",
+      border: "border-green-200",
+    },
+    COMPLETED: {
+      label: tStatus("COMPLETED"),
+      bg: "bg-neutral-50",
+      text: "text-neutral-700",
+      border: "border-neutral-200",
+    },
+    CANCELLED: {
+      label: tStatus("CANCELLED"),
+      bg: "bg-red-50",
+      text: "text-red-700",
+      border: "border-red-200",
+    },
+  };
 
   const [trips, setTrips] = useState<TripResponse[]>([]);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -92,10 +95,10 @@ export default function AdminOverviewPage() {
     <div className="mx-auto max-w-4xl">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-neutral-900">
-          Admin Overview
+          {t("title")}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Platform summary and quick links.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -140,9 +143,9 @@ export default function AdminOverviewPage() {
                 </svg>
               </div>
               <div>
-                <p className="font-medium text-neutral-900">All Trips</p>
+                <p className="font-medium text-neutral-900">{t("allTrips")}</p>
                 <p className="text-xs text-neutral-500">
-                  {trips.length} total · manage &amp; cancel
+                  {t("allTripsDesc", { total: trips.length })}
                 </p>
               </div>
             </div>
@@ -168,8 +171,8 @@ export default function AdminOverviewPage() {
                 </svg>
               </div>
               <div>
-                <p className="font-medium text-neutral-900">Users</p>
-                <p className="text-xs text-neutral-500">View registered users</p>
+                <p className="font-medium text-neutral-900">{t("users")}</p>
+                <p className="text-xs text-neutral-500">{t("usersDesc")}</p>
               </div>
             </div>
           </Card>
@@ -181,13 +184,13 @@ export default function AdminOverviewPage() {
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-              Recently created trips
+              {t("recentTrips")}
             </p>
             <Link
               href="/admin/trips"
               className="text-xs font-medium text-primary-600 hover:underline"
             >
-              View all
+              {t("viewAll")}
             </Link>
           </div>
           <div className="divide-y divide-neutral-100">

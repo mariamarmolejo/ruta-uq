@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import Button from "./Button";
 
@@ -9,11 +12,15 @@ interface ErrorStateProps {
 }
 
 export default function ErrorState({
-  title = "Something went wrong",
-  message = "An unexpected error occurred. Please try again.",
+  title,
+  message,
   onRetry,
   className,
 }: ErrorStateProps) {
+  const t = useTranslations("ui");
+  const resolvedTitle = title ?? t("errorTitle");
+  const resolvedMessage = message ?? t("errorMessage");
+
   return (
     <div
       className={cn(
@@ -37,12 +44,12 @@ export default function ErrorState({
         </svg>
       </div>
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-neutral-900">{title}</p>
-        <p className="text-sm text-neutral-500">{message}</p>
+        <p className="text-sm font-semibold text-neutral-900">{resolvedTitle}</p>
+        <p className="text-sm text-neutral-500">{resolvedMessage}</p>
       </div>
       {onRetry && (
         <Button variant="outline" size="sm" onClick={onRetry}>
-          Try again
+          {t("tryAgain")}
         </Button>
       )}
     </div>

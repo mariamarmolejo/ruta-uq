@@ -1,23 +1,94 @@
 [
-  { "ParameterKey": "Project",                       "ParameterValue": "rutauq" },
-  { "ParameterKey": "Environment",                   "ParameterValue": "dev" },
-  { "ParameterKey": "BackendPort",                   "ParameterValue": "8080" },
-  { "ParameterKey": "BackendImageTag",               "ParameterValue": "latest" },
-  { "ParameterKey": "BackendCpu",                    "ParameterValue": "512" },
-  { "ParameterKey": "BackendMemory",                 "ParameterValue": "1024" },
-  { "ParameterKey": "BackendDesiredCount",           "ParameterValue": "1" },
-  { "ParameterKey": "DbUsername",                    "ParameterValue": "rutauq_user" },
-  { "ParameterKey": "DbPasswordSsmPath",             "ParameterValue": "/rutauq/dev/db-password" },
-  { "ParameterKey": "JwtSecretSsmPath",              "ParameterValue": "/rutauq/dev/jwt-secret" },
-  { "ParameterKey": "MercadoPagoTokenSsmPath",       "ParameterValue": "/rutauq/dev/mp-access-token" },
-  { "ParameterKey": "MercadoPagoWebhookSecretSsmPath","ParameterValue": "/rutauq/dev/mp-webhook-secret" },
-  { "ParameterKey": "FrontendUrl",                    "ParameterValue": "https://d2xjb72kztwbb5.cloudfront.net" },
-  { "ParameterKey": "BackendUrl",                     "ParameterValue": "https://d4k7z67qugw7a.cloudfront.net" },
-  { "ParameterKey": "LogRetentionDays",              "ParameterValue": "30" },
-  { "ParameterKey": "MailEnabled",                   "ParameterValue": "true" },
-  { "ParameterKey": "MailFrom",                      "ParameterValue": "studioflowia@gmail.com" },
-  { "ParameterKey": "MailHost",                      "ParameterValue": "smtp.gmail.com" },
-  { "ParameterKey": "MailPort",                      "ParameterValue": "587" },
-  { "ParameterKey": "MailUsername",                  "ParameterValue": "studioflowia@gmail.com" },
-  { "ParameterKey": "MailPasswordSsmPath",           "ParameterValue": "/rutauq/dev/mail-password" }
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "rutauq"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "dev"
+  },
+  {
+    "ParameterKey": "BackendPort",
+    "ParameterValue": "8080"
+  },
+  {
+    "ParameterKey": "BackendImageTag",
+    "ParameterValue": "latest"
+  },
+  {
+    "ParameterKey": "BackendCpu",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "BackendMemory",
+    "ParameterValue": "1024"
+  },
+  {
+    "ParameterKey": "BackendDesiredCount",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "DbUsername",
+    "ParameterValue": "rutauq_user"
+  },
+  {
+    "ParameterKey": "DbPasswordSsmPath",
+    "ParameterValue": "/rutauq/dev/db-password"
+  },
+  {
+    "ParameterKey": "JwtSecretSsmPath",
+    "ParameterValue": "/rutauq/dev/jwt-secret"
+  },
+  {
+    "ParameterKey": "MercadoPagoTokenSsmPath",
+    "ParameterValue": "/rutauq/dev/mp-access-token"
+  },
+  {
+    "ParameterKey": "MercadoPagoWebhookSecretSsmPath",
+    "ParameterValue": "/rutauq/dev/mp-webhook-secret"
+  },
+  {
+    "ParameterKey": "GoogleClientIdSsmPath",
+    "ParameterValue": "/rutauq/dev/google-client-id"
+  },
+  {
+    "ParameterKey": "FrontendUrl",
+    "ParameterValue": "https://www.rutauq.online"
+  },
+  {
+    "ParameterKey": "BackendUrl",
+    "ParameterValue": "https://api.rutauq.online"
+  },
+  {
+    "ParameterKey": "AcmCertificateArn",
+    "ParameterValue": "arn:aws:acm:us-east-1:883886327106:certificate/0088ce07-c956-4985-9713-36ad9608fb64"
+  },
+  {
+    "ParameterKey": "LogRetentionDays",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "MailEnabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "MailFrom",
+    "ParameterValue": "studioflowia@gmail.com"
+  },
+  {
+    "ParameterKey": "MailHost",
+    "ParameterValue": "smtp.gmail.com"
+  },
+  {
+    "ParameterKey": "MailPort",
+    "ParameterValue": "587"
+  },
+  {
+    "ParameterKey": "MailUsername",
+    "ParameterValue": "studioflowia@gmail.com"
+  },
+  {
+    "ParameterKey": "MailPasswordSsmPath",
+    "ParameterValue": "/rutauq/dev/mail-password"
+  }
 ]

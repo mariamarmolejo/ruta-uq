@@ -134,6 +134,9 @@ app:
     captcha:
       enabled: false
 
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+
 # ---- Mercado Pago ------------------------------------------------------------
 mercadopago:
   access-token: ${MERCADOPAGO_ACCESS_TOKEN:token}

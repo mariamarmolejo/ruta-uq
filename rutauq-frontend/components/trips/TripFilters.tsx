@@ -1,6 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import { useTranslations } from "next-intl";
 import type { TripSearchParams } from "@/services/trips.service";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -16,6 +17,7 @@ export default function TripFilters({
   onSearch,
   loading,
 }: TripFiltersProps) {
+  const t = useTranslations("trips.filters");
   const { register, handleSubmit, reset } = useForm<TripSearchParams>({
     defaultValues,
   });
@@ -32,22 +34,22 @@ export default function TripFilters({
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
-          label="Origin"
-          placeholder="e.g. Armenia"
+          label={t("origin")}
+          placeholder={t("originPlaceholder")}
           {...register("origin")}
         />
         <Input
-          label="Destination"
-          placeholder="e.g. Universidad UQ"
+          label={t("destination")}
+          placeholder={t("destinationPlaceholder")}
           {...register("destination")}
         />
         <Input
-          label="Date"
+          label={t("date")}
           type="date"
           {...register("date")}
         />
         <Input
-          label="Min. seats"
+          label={t("minSeats")}
           type="number"
           min={1}
           placeholder="1"
@@ -57,7 +59,7 @@ export default function TripFilters({
 
       <div className="mt-4 flex items-center gap-2">
         <Button type="submit" loading={loading} size="sm">
-          Search
+          {t("search")}
         </Button>
         <Button
           type="button"
@@ -65,7 +67,7 @@ export default function TripFilters({
           size="sm"
           onClick={handleClear}
         >
-          Clear
+          {t("clear")}
         </Button>
       </div>
     </form>

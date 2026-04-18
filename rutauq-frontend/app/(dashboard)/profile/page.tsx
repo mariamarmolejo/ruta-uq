@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import type { UserProfile } from "@/types";
 import { usersService } from "@/services/users.service";
 import { useAuthStore } from "@/stores/auth.store";
@@ -15,22 +16,21 @@ import Badge from "@/components/ui/Badge";
 import Loader from "@/components/ui/Loader";
 import ErrorState from "@/components/ui/ErrorState";
 
-const schema = z.object({
-  firstName: z.string().min(2, "At least 2 characters"),
-  lastName: z.string().min(2, "At least 2 characters"),
-  phone: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-const roleLabel: Record<string, string> = {
-  CLIENT: "Passenger",
-  DRIVER: "Driver",
-  ADMIN: "Admin",
+type FormValues = {
+  firstName: string;
+  lastName: string;
+  phone?: string;
 };
 
 export default function ProfilePage() {
   const { updateUser } = useAuthStore();
+  const t = useTranslations("profile");
+
+  const schema = z.object({
+    firstName: z.string().min(2, t("firstNameMin")),
+    lastName: z.string().min(2, t("lastNameMin")),
+    phone: z.string().optional(),
+  });
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,7 +111,7 @@ export default function ProfilePage() {
   if (fetchError || !profile)
     return (
       <ErrorState
-        message={fetchError ?? "Could not load profile."}
+        message={fetchError ?? t("notLoaded")}
         onRetry={fetchProfile}
       />
     );
@@ -120,21 +120,19 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-lg">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Profile</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Manage your personal information.
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+          <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
         </div>
         {!editing && (
           <Button variant="outline" size="sm" onClick={handleEdit}>
-            Edit
+            {t("edit")}
           </Button>
         )}
       </div>
 
       {saveSuccess && !editing && (
         <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          Profile updated successfully.
+          {t("savedSuccess")}
         </div>
       )}
 
@@ -142,7 +140,7 @@ export default function ProfilePage() {
         {editing ? (
           <Card>
             <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-              Edit information
+              {t("editSection")}
             </p>
             <form
               onSubmit={handleSubmit(onSubmit)}
@@ -151,13 +149,13 @@ export default function ProfilePage() {
             >
               <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="First name"
+                  label={t("firstNameLabel")}
                   autoComplete="given-name"
                   error={errors.firstName?.message}
                   {...register("firstName")}
                 />
                 <Input
-                  label="Last name"
+                  label={t("lastNameLabel")}
                   autoComplete="family-name"
                   error={errors.lastName?.message}
                   {...register("lastName")}
@@ -165,10 +163,10 @@ export default function ProfilePage() {
               </div>
 
               <Input
-                label="Phone"
+                label={t("phoneLabel")}
                 type="tel"
                 autoComplete="tel"
-                placeholder="+57 300 000 0000"
+                placeholder={t("phonePlaceholder")}
                 error={errors.phone?.message}
                 {...register("phone")}
               />
@@ -176,13 +174,13 @@ export default function ProfilePage() {
               {/* Email is read-only */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-neutral-700">
-                  Email
+                  {t("emailLabel")}
                 </label>
                 <p className="flex h-10 items-center rounded border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-500">
                   {profile.email}
                 </p>
                 <p className="text-xs text-neutral-400">
-                  Email cannot be changed.
+                  {t("emailReadOnly")}
                 </p>
               </div>
 
@@ -198,14 +196,14 @@ export default function ProfilePage() {
                   variant="outline"
                   onClick={handleCancel}
                 >
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button
                   type="submit"
                   loading={isSubmitting}
                   disabled={!isDirty}
                 >
-                  Save changes
+                  {t("saveChanges")}
                 </Button>
               </div>
             </form>
@@ -214,26 +212,26 @@ export default function ProfilePage() {
           <>
             <Card>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Personal information
+                {t("personalInfo")}
               </p>
               <CardContent>
                 <div className="grid grid-cols-2 gap-y-4 text-sm">
-                  <Field label="First name" value={profile.firstName} />
-                  <Field label="Last name" value={profile.lastName} />
-                  <Field label="Email" value={profile.email} />
-                  <Field label="Phone" value={profile.phone || "—"} />
+                  <Field label={t("firstName")} value={profile.firstName} />
+                  <Field label={t("lastName")} value={profile.lastName} />
+                  <Field label={t("email")} value={profile.email} />
+                  <Field label={t("phone")} value={profile.phone || "—"} />
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Account
+                {t("account")}
               </p>
               <CardContent>
                 <div className="grid grid-cols-2 gap-y-4 text-sm">
                   <div>
-                    <p className="text-xs text-neutral-400">Role</p>
+                    <p className="text-xs text-neutral-400">{t("role")}</p>
                     <Badge
                       variant={
                         profile.role === "DRIVER"
@@ -244,15 +242,19 @@ export default function ProfilePage() {
                       }
                       className="mt-1"
                     >
-                      {roleLabel[profile.role] ?? profile.role}
+                      {profile.role === "DRIVER"
+                        ? t("roleDriver")
+                        : profile.role === "ADMIN"
+                        ? t("roleAdmin")
+                        : t("rolePassenger")}
                     </Badge>
                   </div>
                   <Field
-                    label="Member since"
+                    label={t("memberSince")}
                     value={formatDate(profile.createdAt)}
                   />
                   <Field
-                    label="Last updated"
+                    label={t("lastUpdated")}
                     value={formatDate(profile.updatedAt)}
                   />
                 </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface ModalProps {
@@ -30,6 +31,7 @@ export default function Modal({
   className,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const t = useTranslations("ui");
 
   // Close on Escape key
   useEffect(() => {
@@ -98,7 +100,7 @@ export default function Modal({
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-          aria-label="Close"
+          aria-label={t("close")}
         >
           <svg
             className="h-4 w-4"

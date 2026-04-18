@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { tripsService, type TripSearchParams } from "@/services/trips.service";
 import type { TripResponse } from "@/types";
 import { getErrorMessage } from "@/lib/utils";
@@ -14,6 +15,7 @@ import ErrorState from "@/components/ui/ErrorState";
 function TripsList() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("trips");
 
   const [trips, setTrips] = useState<TripResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,8 +73,8 @@ function TripsList() {
         />
       ) : trips.length === 0 ? (
         <EmptyState
-          title="No trips found"
-          description="Try adjusting your filters or check back later."
+          title={t("noTripsFound")}
+          description={t("noTripsDesc")}
           icon={
             <svg
               className="h-6 w-6"
@@ -84,7 +86,7 @@ function TripsList() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"
+                d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"
               />
             </svg>
           }
@@ -101,14 +103,16 @@ function TripsList() {
 }
 
 export default function TripsPage() {
+  const t = useTranslations("trips");
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">
-          Available Trips
+          {t("availableTrips")}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Find and book a seat for your next trip to or from UQ.
+          {t("availableTripsDesc")}
         </p>
       </div>
 

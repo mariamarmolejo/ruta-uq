@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { reservationsService } from "@/services/reservations.service";
 import type { ReservationStatus } from "@/types";
 import { getErrorMessage } from "@/lib/utils";
@@ -18,6 +19,7 @@ function PseResultInner() {
   const searchParams = useSearchParams();
   const reservationId = searchParams.get("reservationId");
   const router = useRouter();
+  const t = useTranslations("pseResult");
 
   const [result, setResult] = useState<ResultState>("pending");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -26,7 +28,7 @@ function PseResultInner() {
   useEffect(() => {
     if (!reservationId) {
       setResult("error");
-      setErrorMsg("No reservation ID found in the URL.");
+      setErrorMsg(t("noReservationId"));
       return;
     }
 
@@ -60,7 +62,7 @@ function PseResultInner() {
     // Start polling after a short initial delay to let the webhook arrive
     const timer = setTimeout(poll, 1500);
     return () => clearTimeout(timer);
-  }, [reservationId]);
+  }, [reservationId, t]);
 
   // ---- Pending ----
   if (result === "pending") {
@@ -70,13 +72,10 @@ function PseResultInner() {
           <Loader size="md" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Verifying payment…</h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            We&apos;re waiting for your bank to confirm the transaction.
-            This usually takes a few seconds.
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("pendingTitle")}</h1>
+          <p className="mt-2 text-sm text-neutral-500">{t("pendingDesc")}</p>
         </div>
-        <p className="text-xs text-neutral-400">Do not close this page.</p>
+        <p className="text-xs text-neutral-400">{t("doNotClose")}</p>
       </div>
     );
   }
@@ -91,17 +90,15 @@ function PseResultInner() {
           </svg>
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Payment confirmed!</h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            Your reservation is confirmed. See you on the road!
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("confirmedTitle")}</h1>
+          <p className="mt-2 text-sm text-neutral-500">{t("confirmedDesc")}</p>
         </div>
         <div className="flex gap-3">
           <Link href="/reservations">
-            <Button variant="outline">My reservations</Button>
+            <Button variant="outline">{t("myReservations")}</Button>
           </Link>
           <Link href="/trips">
-            <Button>Browse trips</Button>
+            <Button>{t("browseTrips")}</Button>
           </Link>
         </div>
       </div>
@@ -118,16 +115,13 @@ function PseResultInner() {
           </svg>
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Payment failed</h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            The bank declined or cancelled the transaction.
-            Your seat has been released.
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("failedTitle")}</h1>
+          <p className="mt-2 text-sm text-neutral-500">{t("failedDesc")}</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => router.back()}>Try again</Button>
+          <Button variant="outline" onClick={() => router.back()}>{t("tryAgain")}</Button>
           <Link href="/trips">
-            <Button>Browse trips</Button>
+            <Button>{t("browseTrips")}</Button>
           </Link>
         </div>
       </div>
@@ -144,14 +138,11 @@ function PseResultInner() {
           </svg>
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Payment is being processed</h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            We couldn&apos;t confirm the status yet. PSE payments can take a few minutes.
-            Check your reservations shortly — it will update automatically.
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("timeoutTitle")}</h1>
+          <p className="mt-2 text-sm text-neutral-500">{t("timeoutDesc")}</p>
         </div>
         <Link href="/reservations">
-          <Button>Check my reservations</Button>
+          <Button>{t("checkReservations")}</Button>
         </Link>
       </div>
     );
@@ -166,11 +157,11 @@ function PseResultInner() {
         </svg>
       </div>
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Something went wrong</h1>
-        <p className="mt-2 text-sm text-neutral-500">{errorMsg ?? "Could not check payment status."}</p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("errorTitle")}</h1>
+        <p className="mt-2 text-sm text-neutral-500">{errorMsg ?? t("errorFallback")}</p>
       </div>
       <Link href="/reservations">
-        <Button>Check my reservations</Button>
+        <Button>{t("checkReservations")}</Button>
       </Link>
     </div>
   );

@@ -4,26 +4,22 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import type { CreateTripRequest, VehicleSummary } from "@/types";
 import { vehiclesService } from "@/services/vehicles.service";
 import { getErrorMessage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
-const tripSchema = z.object({
-  origin: z.string().min(2, "Origin is required"),
-  destination: z.string().min(2, "Destination is required"),
-  departureTime: z.string().min(1, "Departure time is required"),
-  availableSeats: z.number({ message: "Enter a number" }).min(1).max(20),
-  pricePerSeat: z
-    .number({ message: "Enter a number" })
-    .min(0, "Price cannot be negative")
-    .refine((n) => Number.isInteger(n), "Price must be a whole number of COP (no decimals)"),
-  vehicleId: z.string().min(1, "Select a vehicle"),
-  description: z.string().optional(),
-});
-
-type TripFormValues = z.infer<typeof tripSchema>;
+type TripFormValues = {
+  origin: string;
+  destination: string;
+  departureTime: string;
+  availableSeats: number;
+  pricePerSeat: number;
+  vehicleId: string;
+  description?: string;
+};
 
 interface TripFormProps {
   defaultValues?: Partial<TripFormValues>;
@@ -42,7 +38,6 @@ function toIso(local: string): string {
   const [datePart, timePart] = local.split("T");
   const [year, month, day] = datePart.split("-").map(Number);
   const [hours, minutes] = timePart.split(":").map(Number);
-  // Treat the entered value as America/Bogota (UTC-5) → add 5h to get UTC
   const utcMs = Date.UTC(year, month - 1, day, hours, minutes) + COLOMBIA_OFFSET_MS;
   return new Date(utcMs).toISOString();
 }
@@ -52,7 +47,6 @@ function toIso(local: string): string {
  * displayed in Colombian time (America/Bogota).
  */
 export function toDatetimeLocal(iso: string): string {
-  // sv-SE locale produces an ISO-like "YYYY-MM-DD HH:MM" string
   const formatted = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "America/Bogota",
     year: "numeric",
@@ -62,18 +56,32 @@ export function toDatetimeLocal(iso: string): string {
     minute: "2-digit",
     hour12: false,
   }).format(new Date(iso));
-  // Replace the space separator with T to match datetime-local input format
   return formatted.replace(" ", "T");
 }
 
 export default function TripForm({
   defaultValues,
   onSubmit,
-  submitLabel = "Save trip",
+  submitLabel,
 }: TripFormProps) {
+  const t = useTranslations("tripForm");
+  const tVehicle = useTranslations("vehicleForm");
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(true);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const tripSchema = z.object({
+    origin: z.string().min(2, t("originRequired")),
+    destination: z.string().min(2, t("destinationRequired")),
+    departureTime: z.string().min(1, t("departureRequired")),
+    availableSeats: z.number({ message: t("enterNumber") }).min(1).max(20),
+    pricePerSeat: z
+      .number({ message: t("enterNumber") })
+      .min(0, t("priceNegative"))
+      .refine((n) => Number.isInteger(n), t("priceDecimal")),
+    vehicleId: z.string().min(1, t("vehicleRequired")),
+    description: z.string().optional(),
+  });
 
   const {
     register,
@@ -111,21 +119,21 @@ export default function TripForm({
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
-          label="Origin"
-          placeholder="e.g. Armenia Centro"
+          label={t("origin")}
+          placeholder={t("originPlaceholder")}
           error={errors.origin?.message}
           {...register("origin")}
         />
         <Input
-          label="Destination"
-          placeholder="e.g. Universidad UQ"
+          label={t("destination")}
+          placeholder={t("destinationPlaceholder")}
           error={errors.destination?.message}
           {...register("destination")}
         />
       </div>
 
       <Input
-        label="Departure date & time"
+        label={t("departureTime")}
         type="datetime-local"
         error={errors.departureTime?.message}
         {...register("departureTime")}
@@ -133,21 +141,21 @@ export default function TripForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
-          label="Available seats"
+          label={t("availableSeats")}
           type="number"
           min={1}
           max={20}
-          placeholder="1"
+          placeholder={t("seatsPlaceholder")}
           error={errors.availableSeats?.message}
           {...register("availableSeats", { valueAsNumber: true })}
         />
         <Input
-          label="Price per seat (COP)"
+          label={t("pricePerSeat")}
           type="number"
           min={0}
           step={1}
-          placeholder="5000"
-          helperText="Whole pesos only (required for payments)"
+          placeholder={t("pricePlaceholder")}
+          helperText={t("priceHelper")}
           error={errors.pricePerSeat?.message}
           {...register("pricePerSeat", { valueAsNumber: true })}
         />
@@ -155,22 +163,20 @@ export default function TripForm({
 
       {/* Vehicle select */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-neutral-700">Vehicle</label>
+        <label className="text-sm font-medium text-neutral-700">{t("vehicleLabel")}</label>
         {vehiclesLoading ? (
-          <p className="text-sm text-neutral-400">Loading vehicles…</p>
+          <p className="text-sm text-neutral-400">{t("loadingVehicles")}</p>
         ) : vehicles.length === 0 ? (
-          <p className="text-sm text-red-500">
-            You have no vehicles registered. Add one from the Vehicles page first.
-          </p>
+          <p className="text-sm text-red-500">{t("noVehicles")}</p>
         ) : (
           <select
             className="h-10 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
             {...register("vehicleId")}
           >
-            <option value="">Select a vehicle</option>
+            <option value="">{t("selectVehicle")}</option>
             {vehicles.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.brand} {v.model} ({v.year}) · {v.plate} · {v.seats} seats
+                {v.brand} {v.model} ({v.year}) · {v.plate} · {v.seats} {tVehicle("seats")}
               </option>
             ))}
           </select>
@@ -183,12 +189,12 @@ export default function TripForm({
       {/* Description */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-neutral-700">
-          Notes{" "}
-          <span className="font-normal text-neutral-400">(optional)</span>
+          {t("notes")}{" "}
+          <span className="font-normal text-neutral-400">{t("notesOptional")}</span>
         </label>
         <textarea
           rows={3}
-          placeholder="Meeting point, luggage notes, etc."
+          placeholder={t("notesPlaceholder")}
           className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
           {...register("description")}
         />
@@ -201,7 +207,7 @@ export default function TripForm({
       )}
 
       <Button type="submit" loading={isSubmitting}>
-        {submitLabel}
+        {submitLabel ?? t("save")}
       </Button>
     </form>
   );

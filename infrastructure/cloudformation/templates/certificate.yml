@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  RutaUQ - ACM Certificate
+  DNS-validated TLS certificate in us-east-1 covering the apex, www, and api
+  subdomains of rutauq.online.  Must live in us-east-1 — CloudFront requires
+  it and the ALB is also in us-east-1 so one cert serves both.
+
+  Deployment flow:
+    1. ./deploy.sh <env> certificate   ← starts CREATE_IN_PROGRESS (blocks until validated)
+    2. Open ACM console → find the certificate → note the 3 CNAME records shown
+    3. Add those CNAMEs to the registrar DNS panel
+    4. Wait 10–30 min for status = ISSUED; the deploy command completes automatically
+    5. Copy the CertificateArn output into parameters/<env>/cdn.json and ecs.json
+
+# =============================================================================
+# Parameters
+# =============================================================================
+
+Parameters:
+
+  Project:
+    Type: String
+    Default: rutauq
+
+  Environment:
+    Type: String
+    AllowedValues: [dev, staging, prod]
+
+  ApexDomain:
+    Type: String
+    Default: rutauq.online
+
+  WwwDomain:
+    Type: String
+    Default: www.rutauq.online
+
+  ApiDomain:
+    Type: String
+    Default: api.rutauq.online
+
+# =============================================================================
+# Resources
+# =============================================================================
+
+Resources:
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref ApexDomain
+      SubjectAlternativeNames:
+        - !Ref WwwDomain
+        - !Ref ApiDomain
+      ValidationMethod: DNS
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-${Environment}-cert
+        - Key: Environment
+          Value: !Ref Environment
+
+# =============================================================================
+# Outputs
+# =============================================================================
+
+Outputs:
+
+  CertificateArn:
+    Value: !Ref Certificate
+    Description: >
+      ACM certificate ARN.  After validation, copy this value into:
+        parameters/<env>/cdn.json  → AcmCertificateArn
+        parameters/<env>/ecs.json  → AcmCertificateArn
+      Then redeploy those stacks:  ./deploy.sh <env> networking && ./deploy.sh <env> cdn
+    Export:
+      Name: RutaUQ-CertificateArn
+
+  ApexDomain:
+    Value: !Ref ApexDomain
+    Export:
+      Name: !Sub ${Project}-${Environment}-ApexDomain
+
+  WwwDomain:
+    Value: !Ref WwwDomain
+    Export:
+      Name: !Sub ${Project}-${Environment}-WwwDomain
+
+  ApiDomain:
+    Value: !Ref ApiDomain
+    Export:
+      Name: !Sub ${Project}-${Environment}-ApiDomain

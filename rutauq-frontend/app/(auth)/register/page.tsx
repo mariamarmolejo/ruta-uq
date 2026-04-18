@@ -5,45 +5,45 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/useAuth";
 import { getErrorMessage, cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-
-const registerSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email("Enter a valid email address"),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters"),
-  phone: z.string().optional(),
-  role: z.enum(["CLIENT", "DRIVER"] as const, {
-    message: "Select a role",
-  }),
-  privacyAccepted: z.boolean().refine((val) => val === true, {
-    message: "You must accept the privacy policy to continue",
-  }),
-});
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
-
-const roles = [
-  {
-    value: "CLIENT" as const,
-    label: "Passenger",
-    description: "Search and book seats on available trips",
-  },
-  {
-    value: "DRIVER" as const,
-    label: "Driver",
-    description: "Publish trips and offer seats to passengers",
-  },
-];
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 
 export default function RegisterPage() {
+  const t = useTranslations("auth.register");
+  const tAuth = useTranslations("auth");
   const { register: registerUser } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const registerSchema = z.object({
+    firstName: z.string().min(2, t("firstNameMin")),
+    lastName: z.string().min(2, t("lastNameMin")),
+    email: z.string().email(t("emailInvalid")),
+    password: z.string().min(6, t("passwordMin")),
+    phone: z.string().optional(),
+    role: z.enum(["CLIENT", "DRIVER"] as const, { message: t("roleRequired") }),
+    privacyAccepted: z.boolean().refine((val) => val === true, {
+      message: t("privacyRequired"),
+    }),
+  });
+
+  type RegisterFormValues = z.infer<typeof registerSchema>;
+
+  const roles = [
+    {
+      value: "CLIENT" as const,
+      label: t("rolePassenger"),
+      description: t("rolePassengerDesc"),
+    },
+    {
+      value: "DRIVER" as const,
+      label: t("roleDriver"),
+      description: t("roleDriverDesc"),
+    },
+  ];
 
   const {
     register,
@@ -70,16 +70,14 @@ export default function RegisterPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Create account</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Join Ruta Compartida UQ
-        </p>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         {/* Role selector */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-neutral-700">I am a</span>
+          <span className="text-sm font-medium text-neutral-700">{t("iAmA")}</span>
           <div className="grid grid-cols-2 gap-2">
             {roles.map((r) => (
               <button
@@ -106,45 +104,45 @@ export default function RegisterPage() {
         {/* Name row */}
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="First name"
+            label={t("firstNameLabel")}
             autoComplete="given-name"
-            placeholder="Maria"
+            placeholder={t("firstNamePlaceholder")}
             error={errors.firstName?.message}
             {...register("firstName")}
           />
           <Input
-            label="Last name"
+            label={t("lastNameLabel")}
             autoComplete="family-name"
-            placeholder="Gomez"
+            placeholder={t("lastNamePlaceholder")}
             error={errors.lastName?.message}
             {...register("lastName")}
           />
         </div>
 
         <Input
-          label="Email"
+          label={t("emailLabel")}
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           error={errors.email?.message}
           {...register("email")}
         />
 
         <Input
-          label="Password"
+          label={t("passwordLabel")}
           type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
-          helperText="At least 6 characters"
+          placeholder={t("passwordPlaceholder")}
+          helperText={t("passwordHelper")}
           error={errors.password?.message}
           {...register("password")}
         />
 
         <Input
-          label="Phone (optional)"
+          label={t("phoneLabel")}
           type="tel"
           autoComplete="tel"
-          placeholder="+57 300 000 0000"
+          placeholder={t("phonePlaceholder")}
           error={errors.phone?.message}
           {...register("phone")}
         />
@@ -158,16 +156,15 @@ export default function RegisterPage() {
               {...register("privacyAccepted")}
             />
             <span className="text-sm text-neutral-600">
-              I have read and accept the{" "}
+              {t("privacyText")}{" "}
               <span className="font-medium text-neutral-800">
-                personal data processing policy
+                {t("privacyPolicy")}
               </span>{" "}
-              in accordance with{" "}
+              {t("privacyIn")}{" "}
               <span className="font-medium text-neutral-800">
-                Ley 1581 de 2012
+                {t("privacyLaw")}
               </span>{" "}
-              (Colombia&apos;s Habeas Data law). My data will be used solely to
-              manage carpooling services at Universidad de Quindío.
+              {t("privacyDetail")}
             </span>
           </label>
           {errors.privacyAccepted && (
@@ -182,17 +179,27 @@ export default function RegisterPage() {
         )}
 
         <Button type="submit" loading={isSubmitting} className="mt-2 w-full">
-          Create account
+          {t("submit")}
         </Button>
       </form>
 
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-2 text-neutral-500">{tAuth("orContinueWith")}</span>
+        </div>
+      </div>
+      <GoogleLoginButton />
+
       <p className="mt-6 text-center text-sm text-neutral-500">
-        Already have an account?{" "}
+        {t("haveAccount")}{" "}
         <Link
           href="/login"
           className="font-medium text-primary-600 hover:underline"
         >
-          Sign in
+          {t("signIn")}
         </Link>
       </p>
     </>

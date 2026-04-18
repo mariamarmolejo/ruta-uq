@@ -17,3 +17,118 @@ body {
     text-wrap: balance;
   }
 }
+
+/* ============================================================
+   Accessibility overrides — toggled via classes on <html>
+   ============================================================ */
+
+/* Font size */
+html.a11y-text-lg {
+  font-size: 1.125rem; /* 18px */
+}
+html.a11y-text-xl {
+  font-size: 1.25rem; /* 20px */
+}
+
+/* High contrast
+   Strategy: override the CSS variables used by Tailwind's theme tokens AND
+   force every bg/text/border Tailwind utility class used in this project to
+   the high-contrast palette.  Using !important is intentional — we must beat
+   Tailwind's utility specificity without adding inline styles.
+   The accessibility panel itself ([data-a11y-panel] and its children) is
+   excluded from all overrides so its own controls remain visible. */
+
+html.high-contrast {
+  --background: #000000;
+  --foreground: #ffffff;
+}
+
+/* All surfaces → black (panel excluded) */
+html.high-contrast body,
+html.high-contrast [class*="bg-white"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-neutral-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-primary-50"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-primary-100"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-secondary-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-red-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-green-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-yellow-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-blue-"]:not([data-a11y-panel]):not([data-a11y-panel] *) {
+  background-color: #000000 !important;
+}
+
+/* Keep interactive primary backgrounds readable (panel excluded) */
+html.high-contrast [class*="bg-primary-600"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="bg-primary-700"]:not([data-a11y-panel]):not([data-a11y-panel] *) {
+  background-color: #0051ff !important;
+}
+
+/* All text → white (panel excluded) */
+html.high-contrast body,
+html.high-contrast [class*="text-neutral-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="text-primary-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="text-secondary-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="text-red-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="text-green-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="text-yellow-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="text-white"]:not([data-a11y-panel]):not([data-a11y-panel] *) {
+  color: #ffffff !important;
+}
+
+/* Borders → visible bright line (panel excluded) */
+html.high-contrast [class*="border-neutral-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="border-red-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="border-green-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="border-primary-"]:not([data-a11y-panel]):not([data-a11y-panel] *),
+html.high-contrast [class*="divide-neutral-"]:not([data-a11y-panel]):not([data-a11y-panel] *) {
+  border-color: #ffffff !important;
+}
+
+/* Links → yellow for maximum contrast on black (panel excluded) */
+html.high-contrast a:not([data-a11y-panel]):not([data-a11y-panel] *) {
+  color: #ffff00 !important;
+  text-decoration: underline;
+}
+
+/* Focus rings → bright yellow */
+html.high-contrast *:focus-visible {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 2px;
+}
+
+/* Input / select / textarea backgrounds (panel excluded) */
+html.high-contrast input:not([data-a11y-panel] *),
+html.high-contrast select:not([data-a11y-panel] *),
+html.high-contrast textarea:not([data-a11y-panel] *) {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+/* Placeholder text (panel excluded) */
+html.high-contrast input:not([data-a11y-panel] *)::placeholder,
+html.high-contrast textarea:not([data-a11y-panel] *)::placeholder {
+  color: #aaaaaa !important;
+}
+
+/* Reduce motion */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Grayscale — applied via filter on body so it doesn't interfere with
+   other html-level overrides (high-contrast uses background/color, not filter) */
+html.grayscale-mode body {
+  filter: grayscale(100%);
+}
+
+/* When both are active the grayscale filter still applies on body;
+   the high-contrast colour overrides on html win for bg/text */
+html.grayscale-mode.high-contrast body {
+  filter: grayscale(100%);
+}

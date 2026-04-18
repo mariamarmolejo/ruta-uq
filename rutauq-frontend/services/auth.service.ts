@@ -33,4 +33,9 @@ export const authService = {
   async resendVerification(email: string): Promise<void> {
     await apiClient.post("/auth/resend-verification", { email });
   },
+
+  async googleLogin(idToken: string): Promise<AuthResponse> {
+    const res = await apiClient.post<ApiResponse<AuthResponse>>("/auth/google", { idToken });
+    return res.data.data;
+  },
 };

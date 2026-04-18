@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { AxiosError } from "axios";
-import type { TripStatus, ReservationStatus } from "@/types";
+import type { TripStatus, ReservationStatus, RefundStatus } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -104,4 +104,13 @@ export const RESERVATION_STATUS_LABEL: Record<ReservationStatus, string> = {
   PAYMENT_FAILED: "Payment failed",
   CANCELLED: "Cancelled",
   COMPLETED: "Completed",
+};
+
+export const REFUND_STATUS_VARIANT: Record<
+  RefundStatus,
+  "warning" | "success" | "danger"
+> = {
+  PENDING: "warning",
+  PROCESSED: "success",
+  FAILED: "danger",
 };

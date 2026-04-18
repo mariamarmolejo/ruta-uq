@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { tripsService } from "@/services/trips.service";
 import type { TripResponse, TripStatus } from "@/types";
@@ -10,7 +11,6 @@ import {
   formatDateShort,
   getErrorMessage,
   TRIP_STATUS_VARIANT,
-  TRIP_STATUS_LABEL,
 } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -23,6 +23,8 @@ type Filter = TripStatus | typeof ALL;
 
 export default function AdminTripsPage() {
   const roleLoading = useRequireRole(["ADMIN"]);
+  const t = useTranslations("admin.trips");
+  const tStatus = useTranslations("tripStatus");
 
   const [trips, setTrips] = useState<TripResponse[]>([]);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -49,7 +51,7 @@ export default function AdminTripsPage() {
   }, [roleLoading, fetchTrips]);
 
   const handleCancel = async (tripId: string) => {
-    if (!confirm("Cancel this trip? Passengers will be notified.")) return;
+    if (!confirm(t("confirmCancel"))) return;
     setCancelError(null);
     setCancelling(tripId);
     try {
@@ -78,16 +80,16 @@ export default function AdminTripsPage() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">All Trips</h1>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {trips.length} trip{trips.length !== 1 ? "s" : ""} on the platform
+            {trips.length === 1 ? t("subtitle", { n: trips.length }) : t("subtitlePlural", { n: trips.length })}
           </p>
         </div>
         <Link
           href="/admin"
           className="text-sm font-medium text-neutral-500 hover:text-neutral-700"
         >
-          ← Overview
+          {t("backToOverview")}
         </Link>
       </div>
 
@@ -103,7 +105,7 @@ export default function AdminTripsPage() {
                 : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
             }`}
           >
-            {f === ALL ? "All" : TRIP_STATUS_LABEL[f]}
+            {f === ALL ? t("all") : tStatus(f)}
             {f === ALL
               ? ` (${trips.length})`
               : ` (${trips.filter((t) => t.status === f).length})`}
@@ -119,8 +121,8 @@ export default function AdminTripsPage() {
 
       {visible.length === 0 ? (
         <EmptyState
-          title="No trips"
-          description="No trips match this filter."
+          title={t("noTrips")}
+          description={t("noTripsDesc")}
         />
       ) : (
         <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
@@ -128,25 +130,25 @@ export default function AdminTripsPage() {
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Route
+                  {t("colRoute")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Departure
+                  {t("colDeparture")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Driver
+                  {t("colDriver")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Seats
+                  {t("colSeats")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Price
+                  {t("colPrice")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Status
+                  {t("colStatus")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Actions
+                  {t("colActions")}
                 </th>
               </tr>
             </thead>
@@ -175,7 +177,7 @@ export default function AdminTripsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={TRIP_STATUS_VARIANT[trip.status]}>
-                      {TRIP_STATUS_LABEL[trip.status]}
+                      {tStatus(trip.status)}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -184,13 +186,13 @@ export default function AdminTripsPage() {
                         href={`/trips/detail?id=${trip.id}`}
                         className="text-xs font-medium text-neutral-500 hover:text-neutral-700"
                       >
-                        View
+                        {t("view")}
                       </Link>
                       <Link
                         href={`/trips/reservations?id=${trip.id}`}
                         className="text-xs font-medium text-primary-600 hover:text-primary-800"
                       >
-                        Reservations
+                        {t("reservations")}
                       </Link>
                       {trip.status === "SCHEDULED" && (
                         <Button
@@ -200,7 +202,7 @@ export default function AdminTripsPage() {
                           disabled={cancelling !== null}
                           onClick={() => handleCancel(trip.id)}
                         >
-                          Cancel
+                          {t("cancel")}
                         </Button>
                       )}
                     </div>

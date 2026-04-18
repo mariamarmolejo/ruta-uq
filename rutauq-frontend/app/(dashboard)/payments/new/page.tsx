@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Script from "next/script";
+import { useTranslations } from "next-intl";
 import type { ReservationResponse } from "@/types";
 import { reservationsService } from "@/services/reservations.service";
 import { paymentsService } from "@/services/payments.service";
@@ -32,6 +33,7 @@ function PaymentFormInner() {
   const reservationId = searchParams.get("reservationId");
   const router = useRouter();
   const { user } = useAuthStore();
+  const t = useTranslations("payment");
 
   const [reservation, setReservation] = useState<ReservationResponse | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -63,7 +65,7 @@ function PaymentFormInner() {
   // 1. Fetch reservation
   useEffect(() => {
     if (!reservationId) {
-      setFetchError("No reservation specified. Go back and try again.");
+      setFetchError(t("noReservation"));
       setFetchLoading(false);
       return;
     }
@@ -72,7 +74,7 @@ function PaymentFormInner() {
       .then(setReservation)
       .catch((err) => setFetchError(getErrorMessage(err)))
       .finally(() => setFetchLoading(false));
-  }, [reservationId]);
+  }, [reservationId, t]);
 
   // 2. Mount MP.js card fields when Card method is active
   useEffect(() => {
@@ -174,13 +176,13 @@ function PaymentFormInner() {
   if (fetchLoading) return <Loader fullPage />;
 
   if (fetchError || !reservation)
-    return <ErrorState message={fetchError ?? "Reservation not found."} />;
+    return <ErrorState message={fetchError ?? t("notFound")} />;
 
   if (reservation.status !== "PENDING_PAYMENT")
     return (
       <ErrorState
-        title="Payment not required"
-        message={`This reservation is already ${reservation.status.toLowerCase().replace("_", " ")}.`}
+        title={t("notRequired")}
+        message={t("alreadyStatus", { status: reservation.status.toLowerCase().replace("_", " ") })}
       />
     );
 
@@ -194,16 +196,16 @@ function PaymentFormInner() {
 
       <div className="mx-auto max-w-lg">
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-neutral-900">Complete Payment</h1>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Your seat is held until this payment is processed.
+            {t("subtitle")}
           </p>
         </div>
 
         {/* Order summary */}
         <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-5 shadow-card">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Order summary
+            {t("orderSummary")}
           </p>
           <div className="flex items-center gap-2 font-semibold text-neutral-900">
             <span>{reservation.trip.origin}</span>
@@ -214,15 +216,15 @@ function PaymentFormInner() {
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
             <div>
-              <p className="text-xs text-neutral-400">Departure</p>
+              <p className="text-xs text-neutral-400">{t("departure")}</p>
               <p className="font-medium text-neutral-700">{formatDate(reservation.trip.departureTime)}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-400">Seats</p>
+              <p className="text-xs text-neutral-400">{t("seats")}</p>
               <p className="font-medium text-neutral-700">{reservation.seatsReserved}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-400">Total</p>
+              <p className="text-xs text-neutral-400">{t("total")}</p>
               <p className="text-lg font-bold text-neutral-900">{formatCurrency(reservation.totalPrice)}</p>
             </div>
           </div>
@@ -246,14 +248,14 @@ function PaymentFormInner() {
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
                   </svg>
-                  Credit / Debit Card
+                  {t("creditDebitCard")}
                 </>
               ) : (
                 <>
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
                   </svg>
-                  PSE
+                  {t("pse")}
                 </>
               )}
             </button>
@@ -266,18 +268,18 @@ function PaymentFormInner() {
             <div className="flex items-center justify-center rounded-lg border border-neutral-200 bg-white p-10 shadow-card">
               <div className="flex flex-col items-center gap-3 text-sm text-neutral-400">
                 <Loader size="md" />
-                <span>Loading payment form…</span>
+                <span>{t("loadingForm")}</span>
               </div>
             </div>
           ) : (
             <form onSubmit={handleCardSubmit} className="rounded-lg border border-neutral-200 bg-white p-5 shadow-card">
               <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Card details
+                {t("cardDetails")}
               </p>
 
               <div className="mb-4 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-neutral-700">Card number</label>
+                  <label className="text-sm font-medium text-neutral-700">{t("cardNumber")}</label>
                   {paymentMethodName && (
                     <span className="text-xs font-medium text-neutral-500">{paymentMethodName}</span>
                   )}
@@ -287,20 +289,20 @@ function PaymentFormInner() {
 
               <div className="mb-4 grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-neutral-700">Expiry date</label>
+                  <label className="text-sm font-medium text-neutral-700">{t("expiryDate")}</label>
                   <div id="mp-expirationDate" className={secureFieldWrapperClass} />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-neutral-700">CVV</label>
+                  <label className="text-sm font-medium text-neutral-700">{t("cvv")}</label>
                   <div id="mp-securityCode" className={secureFieldWrapperClass} />
                 </div>
               </div>
 
               <div className="mb-4 flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-neutral-700">Cardholder name</label>
+                <label className="text-sm font-medium text-neutral-700">{t("cardholderName")}</label>
                 <input
                   type="text"
-                  placeholder="As printed on the card"
+                  placeholder={t("cardholderPlaceholder")}
                   value={cardholderName}
                   onChange={(e) => setCardholderName(e.target.value)}
                   required
@@ -310,7 +312,7 @@ function PaymentFormInner() {
 
               <div className="mb-4 grid grid-cols-5 gap-3">
                 <div className="col-span-2 flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-neutral-700">ID type</label>
+                  <label className="text-sm font-medium text-neutral-700">{t("idType")}</label>
                   <select
                     value={identificationType}
                     onChange={(e) => setIdentificationType(e.target.value)}
@@ -323,10 +325,10 @@ function PaymentFormInner() {
                   </select>
                 </div>
                 <div className="col-span-3 flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-neutral-700">ID number</label>
+                  <label className="text-sm font-medium text-neutral-700">{t("idNumber")}</label>
                   <input
                     type="text"
-                    placeholder="12345678"
+                    placeholder={t("idNumberPlaceholder")}
                     value={identificationNumber}
                     onChange={(e) => setIdentificationNumber(e.target.value)}
                     required
@@ -337,7 +339,7 @@ function PaymentFormInner() {
 
               {installmentOptions.length > 0 && (
                 <div className="mb-4 flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-neutral-700">Installments</label>
+                  <label className="text-sm font-medium text-neutral-700">{t("installments")}</label>
                   <select
                     value={installments}
                     onChange={(e) => setInstallments(Number(e.target.value))}
@@ -355,18 +357,18 @@ function PaymentFormInner() {
               )}
 
               <div className="flex gap-3">
-                <Button type="button" variant="outline" onClick={() => router.back()}>Back</Button>
+                <Button type="button" variant="outline" onClick={() => router.back()}>{t("back")}</Button>
                 <Button
                   type="submit"
                   loading={submitting}
                   disabled={!paymentMethodId || !cardholderName || !identificationNumber}
                   className="flex-1"
                 >
-                  Pay {formatCurrency(reservation.totalPrice)}
+                  {t("pay", { amount: formatCurrency(reservation.totalPrice) })}
                 </Button>
               </div>
               <p className="mt-3 text-center text-xs text-neutral-400">
-                Your card data is tokenized securely by Mercado Pago. It never reaches our servers.
+                {t("securityNote")}
               </p>
             </form>
           )
