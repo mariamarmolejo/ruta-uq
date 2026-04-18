@@ -47,7 +47,8 @@
           "color": "#2563eb",
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "scheme": "rutauq",
     "experiments": {
