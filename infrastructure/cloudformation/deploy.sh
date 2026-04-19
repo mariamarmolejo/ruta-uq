@@ -25,7 +25,9 @@
 #       aws ssm put-parameter --name /rutauq/dev/mp-webhook-secret --value "..." --type SecureString
 #       aws ssm put-parameter --name /rutauq/dev/google-client-id  --value "..." --type SecureString
 #   - (Only when MailEnabled=true in ecs.json) SMTP password:
-#       aws ssm put-parameter --name /rutauq/dev/mail-password     --value "..." --type SecureString
+#       aws ssm put-parameter --name /rutauq/dev/mail-password          --value "..." --type SecureString
+#   - (Only when RecaptchaEnabled=true in ecs.json) reCAPTCHA secret key:
+#       aws ssm put-parameter --name /rutauq/dev/recaptcha-secret-key   --value "6LdymL8sAAAAAOgGkb9Zx8vDOJFJNlb6d9vrIcI0" --type SecureString
 # =============================================================================
 
 set -euo pipefail
@@ -212,6 +214,22 @@ case "${STACK}" in
         echo "ERROR: SSM parameter '${MAIL_SSM_PATH}' not found."
         echo "Create it before deploying:"
         echo "  aws ssm put-parameter --name ${MAIL_SSM_PATH} --value \"YOUR_SMTP_PASSWORD\" --type SecureString"
+        exit 1
+      fi
+      echo " SSM parameter found."
+    fi
+
+    # If RecaptchaEnabled=true, verify the recaptcha-secret-key SSM parameter exists before deploying.
+    RECAPTCHA_ENABLED_VALUE=$(jq -r '.[] | select(.ParameterKey=="RecaptchaEnabled") | .ParameterValue' "${PARAMS_DIR}/ecs.json")
+    RECAPTCHA_SSM_PATH=$(jq -r '.[] | select(.ParameterKey=="RecaptchaSecretKeySsmPath") | .ParameterValue' "${PARAMS_DIR}/ecs.json")
+    if [[ "${RECAPTCHA_ENABLED_VALUE}" == "true" ]]; then
+      echo ""
+      echo "RecaptchaEnabled=true — checking SSM parameter: ${RECAPTCHA_SSM_PATH}"
+      if ! aws ssm get-parameter --name "${RECAPTCHA_SSM_PATH}" --region "${REGION}" --query "Parameter.Name" --output text &>/dev/null; then
+        echo ""
+        echo "ERROR: SSM parameter '${RECAPTCHA_SSM_PATH}' not found."
+        echo "Create it before deploying:"
+        echo "  aws ssm put-parameter --name ${RECAPTCHA_SSM_PATH} --value \"YOUR_RECAPTCHA_SECRET_KEY\" --type SecureString"
         exit 1
       fi
       echo " SSM parameter found."

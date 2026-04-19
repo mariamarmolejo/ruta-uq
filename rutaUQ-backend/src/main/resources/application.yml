@@ -132,7 +132,8 @@ app:
       secret: ${JWT_SECRET:rutaUQ-dev-secret-key-that-is-at-least-32-characters-long-change-in-prod}
       expiration: 86400000    # 24 hours in ms
     captcha:
-      enabled: false
+      enabled: ${RECAPTCHA_ENABLED:false}
+      secret-key: ${RECAPTCHA_SECRET_KEY:}
 
   google:
     client-id: ${GOOGLE_CLIENT_ID:}

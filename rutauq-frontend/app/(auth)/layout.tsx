@@ -34,6 +34,13 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-8 shadow-card">
         {children}
       </div>
+
+      {/* Footer */}
+      <p className="mt-6 text-xs text-neutral-400">
+        <Link href="/policies" className="hover:text-primary-600 hover:underline">
+          Políticas y seguridad
+        </Link>
+      </p>
     </div>
   );
 }

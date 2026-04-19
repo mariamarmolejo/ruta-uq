@@ -90,5 +90,13 @@
   {
     "ParameterKey": "MailPasswordSsmPath",
     "ParameterValue": "/rutauq/dev/mail-password"
+  },
+  {
+    "ParameterKey": "RecaptchaEnabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "RecaptchaSecretKeySsmPath",
+    "ParameterValue": "/rutauq/dev/recaptcha-secret-key"
   }
 ]

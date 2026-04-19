@@ -46,7 +46,10 @@ public enum ErrorCode {
     REFUND_ALREADY_EXISTS("A refund has already been requested for this reservation", HttpStatus.CONFLICT),
 
     // Google OAuth (Phase Google)
-    GOOGLE_TOKEN_INVALID("Google ID token is invalid or expired", HttpStatus.UNAUTHORIZED);
+    GOOGLE_TOKEN_INVALID("Google ID token is invalid or expired", HttpStatus.UNAUTHORIZED),
+
+    // reCAPTCHA
+    INVALID_RECAPTCHA("reCAPTCHA verification failed. Please try again.", HttpStatus.BAD_REQUEST);
 
     private final String defaultMessage;
     private final HttpStatus httpStatus;

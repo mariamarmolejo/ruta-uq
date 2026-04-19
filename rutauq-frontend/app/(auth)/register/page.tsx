@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
+import ReCAPTCHA from "react-google-recaptcha";
 import { useAuth } from "@/hooks/useAuth";
 import { getErrorMessage, cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -17,6 +18,7 @@ export default function RegisterPage() {
   const tAuth = useTranslations("auth");
   const { register: registerUser } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const registerSchema = z.object({
     firstName: z.string().min(2, t("firstNameMin")),
@@ -28,6 +30,7 @@ export default function RegisterPage() {
     privacyAccepted: z.boolean().refine((val) => val === true, {
       message: t("privacyRequired"),
     }),
+    captchaToken: z.string().min(1, t("recaptchaRequired")),
   });
 
   type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -53,7 +56,7 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { role: "CLIENT" },
+    defaultValues: { role: "CLIENT", captchaToken: "" },
   });
 
   const selectedRole = watch("role");
@@ -64,6 +67,8 @@ export default function RegisterPage() {
       await registerUser(values);
     } catch (err) {
       setServerError(getErrorMessage(err));
+      recaptchaRef.current?.reset();
+      setValue("captchaToken", "");
     }
   };
 
@@ -169,6 +174,21 @@ export default function RegisterPage() {
           </label>
           {errors.privacyAccepted && (
             <p className="text-xs text-red-600">{errors.privacyAccepted.message}</p>
+          )}
+        </div>
+
+        {/* reCAPTCHA */}
+        <div className="flex flex-col items-center gap-1">
+          <ReCAPTCHA
+            ref={recaptchaRef}
+            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+            onChange={(token) =>
+              setValue("captchaToken", token ?? "", { shouldValidate: true })
+            }
+            onExpired={() => setValue("captchaToken", "", { shouldValidate: true })}
+          />
+          {errors.captchaToken && (
+            <p className="text-xs text-red-600">{errors.captchaToken.message}</p>
           )}
         </div>
 

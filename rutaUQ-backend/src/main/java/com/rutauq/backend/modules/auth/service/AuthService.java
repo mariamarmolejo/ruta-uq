@@ -70,7 +70,7 @@ public class AuthService implements UserDetailsService {
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         if (!captchaValidator.validate(request.getCaptchaToken())) {
-            throw new AppException(ErrorCode.OPERATION_NOT_PERMITTED, "Captcha validation failed");
+            throw new AppException(ErrorCode.INVALID_RECAPTCHA);
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -103,10 +103,6 @@ public class AuthService implements UserDetailsService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        if (!captchaValidator.validate(request.getCaptchaToken())) {
-            throw new AppException(ErrorCode.OPERATION_NOT_PERMITTED, "Captcha validation failed");
-        }
-
         try {
             getAuthenticationManager().authenticate(
                     new UsernamePasswordAuthenticationToken(
