@@ -62,7 +62,7 @@ function PseResultInner() {
     // Start polling after a short initial delay to let the webhook arrive
     const timer = setTimeout(poll, 1500);
     return () => clearTimeout(timer);
-  }, [reservationId, t]);
+  }, [reservationId]);
 
   // ---- Pending ----
   if (result === "pending") {

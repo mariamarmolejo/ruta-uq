@@ -74,7 +74,7 @@ function PaymentFormInner() {
       .then(setReservation)
       .catch((err) => setFetchError(getErrorMessage(err)))
       .finally(() => setFetchLoading(false));
-  }, [reservationId, t]);
+  }, [reservationId]);
 
   // 2. Mount MP.js card fields when Card method is active
   useEffect(() => {

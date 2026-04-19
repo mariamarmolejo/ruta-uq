@@ -119,7 +119,7 @@ function PaymentDetail() {
       .then(setPayment)
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [id, tPayment]);
+  }, [id]);
 
   useEffect(() => {
     fetchPayment();

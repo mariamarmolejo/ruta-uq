@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Accessibility, X, ZoomIn, ZoomOut, Sun, Zap, Contrast } from "lucide-react";
+import { PersonStanding, X, ZoomIn, ZoomOut, Sun, Zap, Contrast } from "lucide-react";
 
 type FontSize = "normal" | "large" | "xlarge";
 
@@ -151,7 +151,7 @@ export default function AccessibilityPanel() {
         aria-controls="a11y-panel"
         className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg transition-colors hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
       >
-        <Accessibility size={22} aria-hidden="true" />
+        <PersonStanding size={22} aria-hidden="true" />
       </button>
 
       {/* Backdrop */}

@@ -129,6 +129,20 @@
       "passwordMismatch": "Las contraseñas no coinciden"
     }
   },
+  "support": {
+    "title": "Canal de atención",
+    "subtitle": "Contacta a nuestro equipo de soporte para problemas de la plataforma y ayuda con tu cuenta.",
+    "emailLabel": "Correo de soporte",
+    "responsibleLabel": "Responsable",
+    "responsibleName": "María Marmolejo",
+    "scheduleLabel": "Horario de atención",
+    "scheduleTime": "Lun–Vie · 08:00 – 18:00",
+    "sloTitle": "Objetivos de nivel de servicio (días hábiles)",
+    "sloCase": "Casos de uso: hasta 5 días hábiles",
+    "sloFunctional": "Incidentes funcionales: hasta 4 días hábiles",
+    "sloCritical": "Incidentes críticos: hasta 2 días hábiles",
+    "note": "Para una respuesta más rápida incluye capturas de pantalla relevantes y el correo asociado a tu cuenta."
+  },
   "trips": {
     "availableTrips": "Viajes disponibles",
     "availableTripsDesc": "Encuentra y reserva un cupo para tu próximo viaje hacia o desde la UQ.",

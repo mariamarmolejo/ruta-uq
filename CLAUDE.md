@@ -62,7 +62,7 @@ Database uses docker-compose defaults: `rutauq_db`, `rutauq_user`, `rutauq_pass`
 cd rutauq-frontend
 
 npm install
-npm run dev      # dev server at http://localhost:3000
+npm run dev      # dev server at http://localhost:8080
 npm run build    # static export → ./out
 npm lint
 ```

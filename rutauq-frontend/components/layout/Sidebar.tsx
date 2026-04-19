@@ -151,6 +151,15 @@ export default function Sidebar({ className }: SidebarProps) {
         </svg>
       ),
     },
+    {
+      label: t("support"),
+      href: "/support",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 11-3.8-11.4M21 8.5v6.75A2.75 2.75 0 0118.25 18H6.75A2.75 2.75 0 014 15.25V8.5" />
+        </svg>
+      ),
+    },
   ];
 
   const isAdmin = user?.role === "ADMIN";

@@ -129,6 +129,20 @@
       "passwordMismatch": "Passwords do not match"
     }
   },
+  "support": {
+    "title": "Support & Attention Channel",
+    "subtitle": "Contact our support team for platform issues and account help.",
+    "emailLabel": "Support email",
+    "responsibleLabel": "Responsible",
+    "responsibleName": "Maria Marmolejo",
+    "scheduleLabel": "Attention schedule",
+    "scheduleTime": "Mon–Fri · 08:00 – 18:00",
+    "sloTitle": "Service Level Objectives (workdays)",
+    "sloCase": "Use case requests: up to 5 business days",
+    "sloFunctional": "Functional incidents: up to 4 business days",
+    "sloCritical": "Critical incidents: up to 2 business days",
+    "note": "For faster responses include relevant screenshots and the email associated with your account."
+  },
   "trips": {
     "availableTrips": "Available Trips",
     "availableTripsDesc": "Find and book a seat for your next trip to or from UQ.",

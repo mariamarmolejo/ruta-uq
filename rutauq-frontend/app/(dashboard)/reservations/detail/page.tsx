@@ -7,12 +7,13 @@ import { useTranslations } from "next-intl";
 import type { ReservationResponse, ReservationStatus, RefundResponse } from "@/types";
 import { reservationsService } from "@/services/reservations.service";
 import { refundsService } from "@/services/refunds.service";
-  import {
-    formatCurrency,
-    formatDate,
-    getErrorMessage,
-    RESERVATION_STATUS_VARIANT,
-  } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  getErrorMessage,
+  RESERVATION_STATUS_VARIANT,
+  REFUND_STATUS_VARIANT,
+} from "@/lib/utils";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
