@@ -206,6 +206,8 @@ export interface CreatePaymentRequest {
   paymentMethodId?: string;
   installments?: number;
   payerEmail?: string;
+  identificationType?: string;
+  identificationNumber?: string;
   // PSE fields
   financialInstitution?: string;
   docType?: string;

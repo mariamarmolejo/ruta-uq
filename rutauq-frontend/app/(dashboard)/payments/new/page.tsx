@@ -74,7 +74,7 @@ function PaymentFormInner() {
       .then(setReservation)
       .catch((err) => setFetchError(getErrorMessage(err)))
       .finally(() => setFetchLoading(false));
-  }, [reservationId]);
+  }, [reservationId, t]);
 
   // 2. Mount MP.js card fields when Card method is active
   useEffect(() => {
@@ -165,6 +165,8 @@ function PaymentFormInner() {
         paymentType: paymentTypeId,
         installments,
         payerEmail: user?.email,
+        identificationType,
+        identificationNumber,
       });
       router.push(`/payments/detail?id=${payment.id}`);
     } catch (err) {

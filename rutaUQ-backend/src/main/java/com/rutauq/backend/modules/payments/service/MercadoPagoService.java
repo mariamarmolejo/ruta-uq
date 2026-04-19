@@ -65,7 +65,7 @@ public class MercadoPagoService {
             throw new AppException(ErrorCode.MERCADO_PAGO_ERROR,
                     "Mercado Pago rejected the payment: " + e.getResponseBodyAsString(), e);
         } catch (HttpServerErrorException e) {
-            log.error("MP API server error creating payment: {}", e.getStatusCode());
+            log.error("MP API server error creating payment: {} — {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new AppException(ErrorCode.MERCADO_PAGO_ERROR,
                     "Mercado Pago service is temporarily unavailable", e);
         }

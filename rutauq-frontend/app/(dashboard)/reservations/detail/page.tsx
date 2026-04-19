@@ -190,18 +190,13 @@ function ReservationDetail() {
 
         {/* Refund status notice */}
         {refund && (
-          <div className={`rounded-md border px-4 py-3 text-sm ${
-            refund.status === "PROCESSED"
-              ? "border-green-200 bg-green-50 text-green-800"
-              : refund.status === "FAILED"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-yellow-200 bg-yellow-50 text-yellow-800"
-          }`}>
-            <span className="font-medium">
-              {tRefunds("refundBadge", { status: tRefundStatus(refund.status) })}
-            </span>
+          <div className="flex items-center gap-3 rounded-md border border-neutral-200 bg-white px-4 py-3 text-sm">
+            <span className="text-neutral-700">{tRefunds("alreadyRequested")}</span>
+            <Badge variant={REFUND_STATUS_VARIANT[refund.status]}>
+              {tRefundStatus(refund.status)}
+            </Badge>
             {refund.status === "PROCESSED" && refund.processedAt && (
-              <span className="ml-2 text-xs opacity-75">{formatDate(refund.processedAt)}</span>
+              <span className="ml-auto text-xs text-neutral-400">{formatDate(refund.processedAt)}</span>
             )}
           </div>
         )}

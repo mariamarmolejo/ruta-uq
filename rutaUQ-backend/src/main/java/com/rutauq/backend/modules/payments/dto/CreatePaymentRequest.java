@@ -40,4 +40,12 @@ public class CreatePaymentRequest {
      */
     @Email(message = "payerEmail must be a valid email address")
     private String payerEmail;
+
+    /** Payer identification type, e.g. "CC", "CE", "NIT", "PP". Required by MP Colombia. */
+    @NotBlank(message = "identificationType is required")
+    private String identificationType;
+
+    /** Payer identification number. Required by MP Colombia. */
+    @NotBlank(message = "identificationNumber is required")
+    private String identificationNumber;
 }
