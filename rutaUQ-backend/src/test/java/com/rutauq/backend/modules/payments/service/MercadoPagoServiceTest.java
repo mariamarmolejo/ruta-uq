@@ -1,5 +1,6 @@
 package com.rutauq.backend.modules.payments.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rutauq.backend.common.exception.AppException;
 import com.rutauq.backend.common.exception.ErrorCode;
 import com.rutauq.backend.modules.payments.config.MercadoPagoProperties;
@@ -30,6 +31,7 @@ class MercadoPagoServiceTest {
 
     @Mock private RestTemplate restTemplate;
 
+
     private MercadoPagoService mercadoPagoService;
 
     @BeforeEach
@@ -37,7 +39,8 @@ class MercadoPagoServiceTest {
         MercadoPagoProperties properties = new MercadoPagoProperties();
         properties.setApiBaseUrl("https://api.mercadopago.com");
         properties.setAccessToken("TEST-token");
-        mercadoPagoService = new MercadoPagoService(restTemplate, properties);
+        ObjectMapper objectMapper = new ObjectMapper();
+        mercadoPagoService = new MercadoPagoService(restTemplate, properties, objectMapper);
     }
 
     // ---- createPayment ----

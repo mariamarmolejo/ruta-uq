@@ -9,8 +9,11 @@ import com.rutauq.backend.modules.payments.domain.Payment;
 import com.rutauq.backend.modules.payments.domain.PaymentStatus;
 import com.rutauq.backend.modules.payments.dto.CreatePaymentRequest;
 import com.rutauq.backend.modules.payments.dto.PaymentResponse;
+import com.rutauq.backend.modules.payments.dto.PreferenceResponse;
 import com.rutauq.backend.modules.payments.dto.mp.MpCreatePaymentRequest;
 import com.rutauq.backend.modules.payments.dto.mp.MpPaymentResponse;
+import com.rutauq.backend.modules.payments.dto.mp.MpPreferenceRequest;
+import com.rutauq.backend.modules.payments.dto.mp.MpPreferenceResponse;
 import com.rutauq.backend.modules.payments.mapper.PaymentMapper;
 import com.rutauq.backend.modules.payments.repository.PaymentRepository;
 import com.rutauq.backend.modules.reservations.domain.Reservation;
@@ -19,6 +22,7 @@ import com.rutauq.backend.modules.reservations.repository.ReservationRepository;
 import com.rutauq.backend.modules.trips.domain.Trip;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +31,14 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     private final PaymentRepository paymentRepository;
     private final ReservationRepository reservationRepository;
@@ -93,6 +101,75 @@ public class PaymentService {
                 payment.getId(), reservation.getId(), mpResponse.getId(), mpResponse.getStatus());
 
         return paymentMapper.toResponse(payment);
+    }
+
+    /**
+     * Creates a Checkout Pro preference and a pending Payment record.
+     * The actual MP payment ID arrives later via webhook after the user completes payment.
+     */
+    @Transactional
+    public PreferenceResponse createPreference(User currentUser, UUID reservationId) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        if (!reservation.getPassenger().getId().equals(currentUser.getId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED,
+                    "Only the passenger of this reservation can initiate payment");
+        }
+
+        if (reservation.getStatus() != ReservationStatus.PENDING_PAYMENT) {
+            throw new AppException(ErrorCode.PAYMENT_INVALID_STATUS,
+                    "Reservation must be in PENDING_PAYMENT status. Current status: " + reservation.getStatus());
+        }
+
+        if (paymentRepository.existsByReservationId(reservation.getId())) {
+            throw new AppException(ErrorCode.RESOURCE_ALREADY_EXISTS,
+                    "A payment already exists for this reservation");
+        }
+
+        Trip trip = reservation.getTrip();
+        BigDecimal amount = trip.getPricePerSeat()
+                .multiply(BigDecimal.valueOf(reservation.getSeatsReserved()))
+                .setScale(0, RoundingMode.HALF_UP);
+
+        String externalRef = reservation.getId().toString();
+        String resultBase = frontendUrl + "/payments/checkout-result?reservationId=" + externalRef;
+
+        MpPreferenceRequest preferenceRequest = MpPreferenceRequest.builder()
+                .items(List.of(MpPreferenceRequest.MpPreferenceItem.builder()
+                        .id(trip.getId().toString())
+                        .title("Seat Reservation: " + trip.getOrigin() + " → " + trip.getDestination())
+                        .unitPrice(amount)
+                        .quantity(1)
+                        .build()))
+                .payer(MpPreferenceRequest.MpPreferencePayer.builder()
+                        .email("test_user_3519300225381186860@testuser.com")
+                        .build())
+                .backUrls(MpPreferenceRequest.MpBackUrls.builder()
+                        .success(resultBase + "&status=success")
+                        .failure(resultBase + "&status=failure")
+                        .pending(resultBase + "&status=pending")
+                        .build())
+                .autoReturn("approved")
+                .externalReference(externalRef)
+                .notificationUrl(toPublicUrl(properties.getNotificationUrl()))
+                .build();
+
+        MpPreferenceResponse mpResponse = mercadoPagoService.createPreference(preferenceRequest);
+
+        Payment payment = Payment.builder()
+                .reservation(reservation)
+                .status(PaymentStatus.PENDING)
+                .amount(amount)
+                .currency("COP")
+                .externalReference(externalRef)
+                .build();
+        paymentRepository.save(payment);
+
+        log.info("Checkout Pro preference created — preferenceId={} reservationId={}",
+                mpResponse.getId(), reservationId);
+
+        return new PreferenceResponse(mpResponse.getInitPoint(), mpResponse.getSandboxInitPoint(), mpResponse.getId());
     }
 
     @Transactional(readOnly = true)
@@ -172,6 +249,12 @@ public class PaymentService {
             case "refunded", "charged_back" -> PaymentStatus.REFUNDED;
             default             -> PaymentStatus.PENDING;
         };
+    }
+
+    /** Returns the URL only if it's publicly reachable (not localhost/127.0.0.1). MP rejects localhost notification URLs. */
+    private static String toPublicUrl(String url) {
+        if (url == null) return null;
+        return (url.contains("localhost") || url.contains("127.0.0.1")) ? null : url;
     }
 
     private void assertCanViewPayment(Payment payment, User currentUser) {

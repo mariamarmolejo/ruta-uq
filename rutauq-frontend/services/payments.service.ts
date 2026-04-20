@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   CreatePaymentRequest,
   PaymentResponse,
+  PreferenceResponse,
   PseBankOption,
 } from "@/types";
 
@@ -25,6 +26,14 @@ export const paymentsService = {
   async getByReservation(reservationId: string): Promise<PaymentResponse> {
     const res = await apiClient.get<ApiResponse<PaymentResponse>>(
       `/payments/reservation/${reservationId}`
+    );
+    return res.data.data;
+  },
+
+  async createPreference(reservationId: string): Promise<PreferenceResponse> {
+    const res = await apiClient.post<ApiResponse<PreferenceResponse>>(
+      "/payments/preference",
+      { reservationId }
     );
     return res.data.data;
   },

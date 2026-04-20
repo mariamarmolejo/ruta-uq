@@ -221,6 +221,12 @@ export interface PseBankOption {
   description: string;
 }
 
+export interface PreferenceResponse {
+  initPoint: string;
+  sandboxInitPoint: string;
+  preferenceId: string;
+}
+
 // ---- Refunds ----
 
 export type RefundStatus = "PENDING" | "PROCESSED" | "FAILED";

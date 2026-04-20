@@ -4,6 +4,7 @@ import com.rutauq.backend.common.response.ApiResponse;
 import com.rutauq.backend.modules.auth.domain.User;
 import com.rutauq.backend.modules.payments.dto.CreatePaymentRequest;
 import com.rutauq.backend.modules.payments.dto.PaymentResponse;
+import com.rutauq.backend.modules.payments.dto.PreferenceResponse;
 import com.rutauq.backend.modules.payments.service.PaymentService;
 import com.rutauq.backend.shared.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -41,6 +43,21 @@ public class PaymentController {
         PaymentResponse response = paymentService.createPayment(currentUser, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Payment initiated successfully", response));
+    }
+
+    @PostMapping("/preference")
+    @PreAuthorize("hasRole('CLIENT')")
+    @Operation(summary = "Create a Checkout Pro payment preference",
+            description = "Creates a Mercado Pago Checkout Pro preference for the given reservation. " +
+                    "Returns init_point (prod) and sandbox_init_point (test) redirect URLs. " +
+                    "The reservation must be in PENDING_PAYMENT status.")
+    public ResponseEntity<ApiResponse<PreferenceResponse>> createPreference(
+            @RequestBody Map<String, String> body) {
+        User currentUser = securityUtils.getCurrentUser();
+        UUID reservationId = UUID.fromString(body.get("reservationId"));
+        PreferenceResponse response = paymentService.createPreference(currentUser, reservationId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Preference created successfully", response));
     }
 
     @GetMapping("/{id}")
