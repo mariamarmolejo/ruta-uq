@@ -61,7 +61,7 @@
   },
   {
     "ParameterKey": "AcmCertificateArn",
-    "ParameterValue": "arn:aws:acm:us-east-1:883886327106:certificate/0088ce07-c956-4985-9713-36ad9608fb64"
+    "ParameterValue": "arn:aws:acm:us-east-1:883886327106:certificate/baa85029-795d-47f3-916b-38a0ba7f8b32"
   },
   {
     "ParameterKey": "LogRetentionDays",

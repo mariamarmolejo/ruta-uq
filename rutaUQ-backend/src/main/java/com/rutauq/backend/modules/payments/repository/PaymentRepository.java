@@ -16,4 +16,6 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByMercadoPagoPaymentId(String mercadoPagoPaymentId);
 
     boolean existsByReservationId(UUID reservationId);
+
+    Optional<Payment> findByExternalReference(String externalReference);
 }

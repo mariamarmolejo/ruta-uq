@@ -73,8 +73,22 @@ public class WebhookHandlerService {
             return;
         }
 
-        // 3. Find our local payment record by MP payment ID
+        // 3. Find our local payment record — first by MP payment ID (card flow),
+        //    then by externalReference (Checkout Pro flow, where mpPaymentId is set only after webhook)
         Payment payment = paymentRepository.findByMercadoPagoPaymentId(mpPaymentId).orElse(null);
+
+        // 4. Fetch current payment state from MP (GET /v1/payments/{id})
+        MpPaymentResponse mpPaymentResponse = mercadoPagoService.getPayment(mpPaymentId);
+
+        if (payment == null && mpPaymentResponse.getExternalReference() != null) {
+            payment = paymentRepository.findByExternalReference(mpPaymentResponse.getExternalReference()).orElse(null);
+            if (payment != null) {
+                // Stamp the MP payment ID now that we know it (Checkout Pro flow)
+                payment.setMercadoPagoPaymentId(mpPaymentId);
+                log.info("Linked Checkout Pro payment via externalReference={} mpPaymentId={}",
+                        mpPaymentResponse.getExternalReference(), mpPaymentId);
+            }
+        }
 
         PaymentEventLog eventLog = saveEventLog(
                 payment, notificationId, notification.getAction(), rawPayload, false);
@@ -85,9 +99,6 @@ public class WebhookHandlerService {
             eventLogRepository.save(eventLog);
             return;
         }
-
-        // 4. Fetch current payment state from MP (GET /v1/payments/{id})
-        MpPaymentResponse mpPaymentResponse = mercadoPagoService.getPayment(mpPaymentId);
 
         // 5. Update local payment status
         PaymentStatus newStatus = PaymentService.mapPaymentStatus(mpPaymentResponse);
@@ -102,6 +113,38 @@ public class WebhookHandlerService {
         eventLogRepository.save(eventLog);
 
         log.info("Webhook processed — mpPaymentId={} newStatus={} reservationId={}",
+                mpPaymentId, newStatus, payment.getReservation().getId());
+    }
+
+    /**
+     * Manually syncs a payment and reservation state from MP using the numeric MP payment ID.
+     * Used by the checkout-result page when MP includes payment_id in the redirect URL,
+     * so we don't have to wait for the webhook to arrive.
+     */
+    @Transactional
+    public void syncFromMpPaymentId(String mpPaymentId) {
+        MpPaymentResponse mpPaymentResponse = mercadoPagoService.getPayment(mpPaymentId);
+
+        Payment payment = paymentRepository.findByMercadoPagoPaymentId(mpPaymentId).orElse(null);
+
+        if (payment == null && mpPaymentResponse.getExternalReference() != null) {
+            payment = paymentRepository.findByExternalReference(mpPaymentResponse.getExternalReference()).orElse(null);
+            if (payment != null) {
+                payment.setMercadoPagoPaymentId(mpPaymentId);
+            }
+        }
+
+        if (payment == null) {
+            log.warn("syncFromMpPaymentId: no payment found for mpPaymentId={}", mpPaymentId);
+            return;
+        }
+
+        PaymentStatus newStatus = PaymentService.mapPaymentStatus(mpPaymentResponse);
+        payment.setStatus(newStatus);
+        paymentRepository.save(payment);
+        syncReservation(payment.getReservation(), newStatus);
+
+        log.info("Manual sync completed — mpPaymentId={} newStatus={} reservationId={}",
                 mpPaymentId, newStatus, payment.getReservation().getId());
     }
 

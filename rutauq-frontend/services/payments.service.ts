@@ -30,6 +30,10 @@ export const paymentsService = {
     return res.data.data;
   },
 
+  async syncPayment(mpPaymentId: string): Promise<void> {
+    await apiClient.post(`/payments/sync/${mpPaymentId}`);
+  },
+
   async createPreference(reservationId: string): Promise<PreferenceResponse> {
     const res = await apiClient.post<ApiResponse<PreferenceResponse>>(
       "/payments/preference",

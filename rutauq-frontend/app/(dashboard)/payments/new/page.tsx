@@ -24,7 +24,7 @@ const MP_FIELD_STYLE: MPFieldStyle = {
 const secureFieldWrapperClass =
   "h-10 w-full rounded border border-neutral-300 bg-white px-3 flex items-center focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-transparent transition-shadow";
 
-type PaymentMethod = "card" | "pse" | "mercadopago";
+type PaymentMethod = "card";
 
 // ---- Inner form ----
 
@@ -146,24 +146,7 @@ function PaymentFormInner() {
     };
   }, [method, sdkReady, reservation]);
 
-  // 4a. Checkout Pro submit
-  const handleCheckoutProSubmit = async () => {
-    if (!reservationId) return;
-    setSubmitError(null);
-    setSubmitting(true);
-    try {
-      const preference = await paymentsService.createPreference(reservationId);
-      const url = process.env.NODE_ENV === "production"
-        ? preference.initPoint
-        : preference.sandboxInitPoint;
-      window.location.href = url;
-    } catch (err) {
-      setSubmitError(getErrorMessage(err));
-      setSubmitting(false);
-    }
-  };
-
-  // 4b. Card submit
+  // Card submit
   const handleCardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mpRef.current || !reservationId) return;
@@ -251,7 +234,7 @@ function PaymentFormInner() {
 
         {/* Method selector */}
         <div className="mb-4 grid grid-cols-2 gap-3">
-          {(["mercadopago", "card"] as PaymentMethod[]).map((m) => (
+          {(["card"] as PaymentMethod[]).map((m) => (
             <button
               key={m}
               type="button"
@@ -262,50 +245,15 @@ function PaymentFormInner() {
                   : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
               }`}
             >
-              {m === "mercadopago" ? (
-                <>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75" />
-                  </svg>
-                  {t("checkoutPro")}
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                  </svg>
-                  {t("creditDebitCard")}
-                </>
-              )}
+              <>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                </svg>
+                {t("creditDebitCard")}
+              </>
             </button>
           ))}
         </div>
-
-        {/* ---- Checkout Pro panel ---- */}
-        {method === "mercadopago" && (
-          <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-card">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-              {t("checkoutPro")}
-            </p>
-            <p className="mb-6 text-sm text-neutral-600">
-              {t("checkoutProDesc")}
-            </p>
-            {submitError && (
-              <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{submitError}</p>
-            )}
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => router.back()}>{t("back")}</Button>
-              <Button
-                type="button"
-                loading={submitting}
-                onClick={handleCheckoutProSubmit}
-                className="flex-1"
-              >
-                {t("payWithMP", { amount: formatCurrency(reservation.totalPrice) })}
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* ---- Card form ---- */}
         {method === "card" && (

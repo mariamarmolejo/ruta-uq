@@ -6,6 +6,7 @@ import com.rutauq.backend.modules.payments.dto.CreatePaymentRequest;
 import com.rutauq.backend.modules.payments.dto.PaymentResponse;
 import com.rutauq.backend.modules.payments.dto.PreferenceResponse;
 import com.rutauq.backend.modules.payments.service.PaymentService;
+import com.rutauq.backend.modules.payments.service.WebhookHandlerService;
 import com.rutauq.backend.shared.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final WebhookHandlerService webhookHandlerService;
     private final SecurityUtils securityUtils;
 
 
@@ -58,6 +60,16 @@ public class PaymentController {
         PreferenceResponse response = paymentService.createPreference(currentUser, reservationId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Preference created successfully", response));
+    }
+
+    @PostMapping("/sync/{mpPaymentId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Sync payment status from Mercado Pago",
+            description = "Fetches the current status of a payment from MP and updates the local record. " +
+                    "Used by the checkout-result page when MP includes payment_id in the redirect URL.")
+    public ResponseEntity<ApiResponse<Void>> syncPayment(@PathVariable String mpPaymentId) {
+        webhookHandlerService.syncFromMpPaymentId(mpPaymentId);
+        return ResponseEntity.ok(ApiResponse.ok("Payment synced", null));
     }
 
     @GetMapping("/{id}")

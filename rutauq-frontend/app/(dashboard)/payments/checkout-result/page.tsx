@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { reservationsService } from "@/services/reservations.service";
+import { paymentsService } from "@/services/payments.service";
 import type { ReservationStatus } from "@/types";
 import { getErrorMessage } from "@/lib/utils";
 import Loader from "@/components/ui/Loader";
@@ -18,8 +19,8 @@ type ResultState = "pending" | "confirmed" | "failed" | "timeout" | "error";
 function CheckoutResultInner() {
   const searchParams = useSearchParams();
   const reservationId = searchParams.get("reservationId");
-  // MP appends ?status=success|failure|pending to back_urls
   const mpStatus = searchParams.get("status");
+  const mpPaymentId = searchParams.get("payment_id") ?? searchParams.get("collection_id");
   const t = useTranslations("pseResult");
 
   const [result, setResult] = useState<ResultState>(
@@ -29,7 +30,6 @@ function CheckoutResultInner() {
   const pollCount = useRef(0);
 
   useEffect(() => {
-    // If MP already told us it failed, no need to poll
     if (mpStatus === "failure" || !reservationId) {
       if (!reservationId) {
         setResult("error");
@@ -64,9 +64,22 @@ function CheckoutResultInner() {
       }
     };
 
-    const timer = setTimeout(poll, 1500);
+    // If MP gave us the payment_id in the URL, sync it immediately before polling
+    // so we don't depend on the webhook arriving first
+    const start = async () => {
+      if (mpPaymentId) {
+        try {
+          await paymentsService.syncPayment(mpPaymentId);
+        } catch {
+          // Non-fatal — polling will still try to confirm via reservation status
+        }
+      }
+      poll();
+    };
+
+    const timer = setTimeout(start, 500);
     return () => clearTimeout(timer);
-  }, [reservationId, mpStatus, t]);
+  }, [reservationId, mpStatus, mpPaymentId, t]);
 
   if (result === "pending") {
     return (
