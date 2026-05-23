@@ -227,6 +227,36 @@ export interface PreferenceResponse {
   preferenceId: string;
 }
 
+// ---- Incidents ----
+
+export interface CreateIncidentRequest {
+  reservationId: string;
+  description: string;
+}
+
+export interface IncidentResponse {
+  id: string;
+  reservationId: string;
+  description: string;
+  createdAt: string;
+}
+
+// ---- Ratings ----
+
+export interface CreateRatingRequest {
+  reservationId: string;
+  stars: number;
+  comment?: string;
+}
+
+export interface RatingResponse {
+  id: string;
+  reservationId: string;
+  stars: number;
+  comment: string | null;
+  createdAt: string;
+}
+
 // ---- Refunds ----
 
 export type RefundStatus = "PENDING" | "PROCESSED" | "FAILED";

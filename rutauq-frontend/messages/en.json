@@ -638,5 +638,24 @@
       "verification1": "Verification links are valid for 24 hours. If your link has expired, go to the login page and use the \"Resend verification email\" option.",
       "verification2": "If verification emails are not arriving, check your spam or junk folder. Add studioflowia@gmail.com to your contacts to prevent future filtering."
     }
+  },
+  "incidents": {
+    "reportButton": "Report Incident",
+    "confirmTitle": "Report an incident",
+    "descriptionLabel": "What happened?",
+    "descriptionPlaceholder": "Describe the incident...",
+    "submitButton": "Submit report",
+    "cancel": "Cancel",
+    "alreadyReported": "Incident reported"
+  },
+  "ratings": {
+    "rateButton": "Rate Trip",
+    "confirmTitle": "Rate this trip",
+    "starsLabel": "Your rating",
+    "commentLabel": "Comment (optional)",
+    "commentPlaceholder": "Share your experience...",
+    "submitButton": "Submit rating",
+    "cancel": "Cancel",
+    "alreadyRated": "Trip rated"
   }
 }

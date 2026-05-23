@@ -639,5 +639,24 @@
       "verification1": "Los enlaces de verificación son válidos durante 24 horas. Si tu enlace ha expirado, ve a la página de inicio de sesión y usa la opción «Reenviar correo de verificación».",
       "verification2": "Si los correos de verificación no llegan, revisa tu carpeta de spam o correo no deseado. Agrega studioflowia@gmail.com a tus contactos para evitar futuros filtros."
     }
+  },
+  "incidents": {
+    "reportButton": "Reportar incidente",
+    "confirmTitle": "Reportar un incidente",
+    "descriptionLabel": "¿Qué ocurrió?",
+    "descriptionPlaceholder": "Describe el incidente...",
+    "submitButton": "Enviar reporte",
+    "cancel": "Cancelar",
+    "alreadyReported": "Incidente reportado"
+  },
+  "ratings": {
+    "rateButton": "Calificar viaje",
+    "confirmTitle": "Califica este viaje",
+    "starsLabel": "Tu calificación",
+    "commentLabel": "Comentario (opcional)",
+    "commentPlaceholder": "Comparte tu experiencia...",
+    "submitButton": "Enviar calificación",
+    "cancel": "Cancelar",
+    "alreadyRated": "Viaje calificado"
   }
 }

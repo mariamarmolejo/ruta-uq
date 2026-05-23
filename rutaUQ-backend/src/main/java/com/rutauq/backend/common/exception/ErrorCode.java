@@ -48,6 +48,13 @@ public enum ErrorCode {
     // Google OAuth (Phase Google)
     GOOGLE_TOKEN_INVALID("Google ID token is invalid or expired", HttpStatus.UNAUTHORIZED),
 
+    // Incidents
+    INCIDENT_NOT_FOUND("Incident not found", HttpStatus.NOT_FOUND),
+
+    // Ratings
+    RATING_NOT_FOUND("Rating not found", HttpStatus.NOT_FOUND),
+    RATING_ALREADY_EXISTS("You have already rated this trip", HttpStatus.CONFLICT),
+
     // reCAPTCHA
     INVALID_RECAPTCHA("reCAPTCHA verification failed. Please try again.", HttpStatus.BAD_REQUEST);
 

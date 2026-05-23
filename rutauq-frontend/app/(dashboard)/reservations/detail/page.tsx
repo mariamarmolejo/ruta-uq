@@ -4,9 +4,17 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { ReservationResponse, ReservationStatus, RefundResponse } from "@/types";
+import type {
+  ReservationResponse,
+  ReservationStatus,
+  RefundResponse,
+  IncidentResponse,
+  RatingResponse,
+} from "@/types";
 import { reservationsService } from "@/services/reservations.service";
 import { refundsService } from "@/services/refunds.service";
+import { incidentsService } from "@/services/incidents.service";
+import { ratingsService } from "@/services/ratings.service";
 import {
   formatCurrency,
   formatDate,
@@ -31,6 +39,8 @@ function ReservationDetail() {
   const tStatus = useTranslations("reservationStatus");
   const tRefunds = useTranslations("refunds");
   const tRefundStatus = useTranslations("refundStatus");
+  const tIncidents = useTranslations("incidents");
+  const tRatings = useTranslations("ratings");
 
   const [reservation, setReservation] = useState<ReservationResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +51,19 @@ function ReservationDetail() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [requestingRefund, setRequestingRefund] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
+
+  const [incident, setIncident] = useState<IncidentResponse | null | undefined>(undefined);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [incidentDescription, setIncidentDescription] = useState("");
+  const [submittingIncident, setSubmittingIncident] = useState(false);
+  const [incidentError, setIncidentError] = useState<string | null>(null);
+
+  const [rating, setRating] = useState<RatingResponse | null | undefined>(undefined);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedStars, setSelectedStars] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingError, setRatingError] = useState<string | null>(null);
 
   const fetchReservation = useCallback(() => {
     if (!id) {
@@ -53,10 +76,11 @@ function ReservationDetail() {
       .getById(id)
       .then((res) => {
         setReservation(res);
-        // Fetch existing refund in parallel (null = none exists)
         refundsService.getByReservation(id)
           .then(setRefund)
           .catch(() => setRefund(null));
+        incidentsService.getByReservation(id).then(setIncident);
+        ratingsService.getByReservation(id).then(setRating);
       })
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
@@ -93,6 +117,46 @@ function ReservationDetail() {
     }
   };
 
+  const handleReportIncident = async () => {
+    if (!incidentDescription.trim()) return;
+    setIncidentError(null);
+    setSubmittingIncident(true);
+    try {
+      const result = await incidentsService.report({
+        reservationId: id,
+        description: incidentDescription.trim(),
+      });
+      setIncident(result);
+      setShowIncidentModal(false);
+      setIncidentDescription("");
+    } catch (err) {
+      setIncidentError(getErrorMessage(err));
+    } finally {
+      setSubmittingIncident(false);
+    }
+  };
+
+  const handleRateTrip = async () => {
+    if (selectedStars === 0) return;
+    setRatingError(null);
+    setSubmittingRating(true);
+    try {
+      const result = await ratingsService.rate({
+        reservationId: id,
+        stars: selectedStars,
+        comment: ratingComment.trim() || undefined,
+      });
+      setRating(result);
+      setShowRatingModal(false);
+      setSelectedStars(0);
+      setRatingComment("");
+    } catch (err) {
+      setRatingError(getErrorMessage(err));
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   if (loading) return <Loader fullPage />;
   if (error || !reservation)
     return <ErrorState message={error ?? t("notFound")} onRetry={() => router.back()} />;
@@ -104,6 +168,9 @@ function ReservationDetail() {
     trip.status === "CANCELLED" &&
     (reservation.status === "CONFIRMED" || reservation.status === "CANCELLED") &&
     refund === null;
+  const canReportIncident =
+    reservation.status !== "CANCELLED" && reservation.status !== "PENDING_PAYMENT" && incident === null;
+  const canRate = reservation.status === "COMPLETED" && rating === null;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -201,7 +268,22 @@ function ReservationDetail() {
           </div>
         )}
 
-        <div className="flex gap-3 pt-1">
+        {/* Incident submitted notice */}
+        {incident && (
+          <div className="rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+            {tIncidents("alreadyReported")} — {formatDate(incident.createdAt)}
+          </div>
+        )}
+
+        {/* Rating submitted notice */}
+        {rating && (
+          <div className="flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700">
+            <span>{tRatings("alreadyRated")}:</span>
+            <span className="font-medium">{"★".repeat(rating.stars)}{"☆".repeat(5 - rating.stars)}</span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3 pt-1">
           {canPay && (
             <Link href={`/payments/new?reservationId=${reservation.id}`} className="flex-1">
               <Button className="w-full">
@@ -226,6 +308,24 @@ function ReservationDetail() {
               onClick={() => { setRefundError(null); setShowRefundModal(true); }}
             >
               {tRefunds("requestRefund")}
+            </Button>
+          )}
+          {canRate && (
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setRatingError(null); setShowRatingModal(true); }}
+            >
+              {tRatings("rateButton")}
+            </Button>
+          )}
+          {canReportIncident && (
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setIncidentError(null); setShowIncidentModal(true); }}
+            >
+              {tIncidents("reportButton")}
             </Button>
           )}
         </div>
@@ -255,6 +355,109 @@ function ReservationDetail() {
             <Button loading={requestingRefund} onClick={handleRefund} className="flex-1">
               {tRefunds("confirmButton")}
             </Button>
+          </div>
+        </Modal>
+
+        {/* Report incident modal */}
+        <Modal
+          open={showIncidentModal}
+          onClose={() => setShowIncidentModal(false)}
+          title={tIncidents("confirmTitle")}
+        >
+          <div className="flex flex-col gap-3">
+            <label className="text-sm font-medium text-neutral-700">
+              {tIncidents("descriptionLabel")}
+            </label>
+            <textarea
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              rows={4}
+              placeholder={tIncidents("descriptionPlaceholder")}
+              value={incidentDescription}
+              onChange={(e) => setIncidentDescription(e.target.value)}
+            />
+            {incidentError && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+                {incidentError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowIncidentModal(false)}
+                disabled={submittingIncident}
+              >
+                {tIncidents("cancel")}
+              </Button>
+              <Button
+                loading={submittingIncident}
+                onClick={handleReportIncident}
+                disabled={!incidentDescription.trim()}
+                className="flex-1"
+              >
+                {tIncidents("submitButton")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Rate trip modal */}
+        <Modal
+          open={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          title={tRatings("confirmTitle")}
+        >
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="mb-2 text-sm font-medium text-neutral-700">{tRatings("starsLabel")}</p>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setSelectedStars(star)}
+                    className={`text-3xl transition-colors ${
+                      star <= selectedStars ? "text-yellow-400" : "text-neutral-300"
+                    } hover:text-yellow-400`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {tRatings("commentLabel")}
+              </label>
+              <textarea
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                rows={3}
+                placeholder={tRatings("commentPlaceholder")}
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+              />
+            </div>
+            {ratingError && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+                {ratingError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowRatingModal(false)}
+                disabled={submittingRating}
+              >
+                {tRatings("cancel")}
+              </Button>
+              <Button
+                loading={submittingRating}
+                onClick={handleRateTrip}
+                disabled={selectedStars === 0}
+                className="flex-1"
+              >
+                {tRatings("submitButton")}
+              </Button>
+            </div>
           </div>
         </Modal>
       </div>
