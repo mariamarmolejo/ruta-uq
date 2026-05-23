@@ -35,8 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *  - cleanupIfExists() guards against leftover data from a previously aborted run
  *  - @TestInstance(PER_CLASS) lets @BeforeAll/@AfterAll be non-static and use @Autowired
  *
- * Trip fixture: 2 seats, price = 3500.00
- *  → CLIENT1 reserves 2 seats (totalPrice = 7000.00, 0 seats left)
+ * Trip fixture: 2 seats, price = 3500
+ *  → CLIENT1 reserves 2 seats (totalPrice = 7000, 0 seats left)
  *  → CLIENT2 is used only for the over-booking scenario
  */
 @SpringBootTest
@@ -66,7 +66,7 @@ class ReservationIntegrationTest {
     private static final String CLIENT2_EMAIL = "test.res.client2@rutauq.test";
     private static final String DRIVER_EMAIL  = "test.res.driver@rutauq.test";
     private static final String PASSWORD      = "TestPass123!";
-    private static final BigDecimal PRICE     = new BigDecimal("3500.00");
+    private static final BigDecimal PRICE     = new BigDecimal("3500");
     private static final int TRIP_SEATS       = 2;
 
     // -------------------------------------------------------------------------
@@ -173,7 +173,7 @@ class ReservationIntegrationTest {
 
     @Test
     @Order(1)
-    @DisplayName("CLIENT1 reserves 2 seats → 201, status PENDING_PAYMENT, totalPrice = 7000.00")
+    @DisplayName("CLIENT1 reserves 2 seats → 201, status PENDING_PAYMENT, totalPrice = 7000")
     void createReservation_success() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/reservations")
                         .header("Authorization", "Bearer " + client1Token)
@@ -186,11 +186,11 @@ class ReservationIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("PENDING_PAYMENT"))
                 .andExpect(jsonPath("$.data.seatsReserved").value(2))
-                .andExpect(jsonPath("$.data.totalPrice").value(7000.00))
+                .andExpect(jsonPath("$.data.totalPrice").value(7000))
                 .andExpect(jsonPath("$.data.id").isNotEmpty())
                 .andExpect(jsonPath("$.data.trip.id").value(tripId.toString()))
                 .andExpect(jsonPath("$.data.trip.origin").value("Armenia Test"))
-                .andExpect(jsonPath("$.data.trip.pricePerSeat").value(3500.00))
+                .andExpect(jsonPath("$.data.trip.pricePerSeat").value(3500))
                 .andExpect(jsonPath("$.data.passenger.email").value(CLIENT1_EMAIL))
                 .andDo(print())
                 .andReturn();
