@@ -144,3 +144,9 @@ mercadopago:
   webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET:token}
   api-base-url: https://api.mercadopago.com
   notification-url: ${APP_BASE_URL:http://localhost:8080}/api/v1/payments/webhook
+
+# ---- Groq --------------------------------------------------------------------
+groq:
+  api-key: ${GROQ_API_KEY:}
+  model: ${GROQ_MODEL:llama-3.1-8b-instant}
+  api-base-url: https://api.groq.com/openai/v1

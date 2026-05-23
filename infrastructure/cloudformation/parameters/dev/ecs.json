@@ -52,6 +52,10 @@
     "ParameterValue": "/rutauq/dev/google-client-id"
   },
   {
+    "ParameterKey": "GroqApiKeySsmPath",
+    "ParameterValue": "/rutauq/dev/groq-api-key"
+  },
+  {
     "ParameterKey": "FrontendUrl",
     "ParameterValue": "https://www.rutauq.online"
   },

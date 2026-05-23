@@ -24,6 +24,7 @@
 #       aws ssm put-parameter --name /rutauq/dev/mp-access-token   --value "..." --type SecureString
 #       aws ssm put-parameter --name /rutauq/dev/mp-webhook-secret --value "..." --type SecureString
 #       aws ssm put-parameter --name /rutauq/dev/google-client-id  --value "..." --type SecureString
+#       aws ssm put-parameter --name /rutauq/dev/groq-api-key     --value "..." --type SecureString
 #   - (Only when MailEnabled=true in ecs.json) SMTP password:
 #       aws ssm put-parameter --name /rutauq/dev/mail-password          --value "..." --type SecureString
 #   - (Only when RecaptchaEnabled=true in ecs.json) reCAPTCHA secret key:
@@ -234,6 +235,18 @@ case "${STACK}" in
       fi
       echo " SSM parameter found."
     fi
+
+    GROQ_SSM_PATH=$(jq -r '.[] | select(.ParameterKey=="GroqApiKeySsmPath") | .ParameterValue' "${PARAMS_DIR}/ecs.json")
+    echo ""
+    echo "Checking SSM parameter: ${GROQ_SSM_PATH}"
+    if ! aws ssm get-parameter --name "${GROQ_SSM_PATH}" --region "${REGION}" --query "Parameter.Name" --output text &>/dev/null; then
+      echo ""
+      echo "ERROR: SSM parameter '${GROQ_SSM_PATH}' not found."
+      echo "Create it before deploying:"
+      echo "  aws ssm put-parameter --name ${GROQ_SSM_PATH} --value \"YOUR_GROQ_API_KEY\" --type SecureString"
+      exit 1
+    fi
+    echo " SSM parameter found."
 
     deploy_stack ecs
     show_outputs ecs

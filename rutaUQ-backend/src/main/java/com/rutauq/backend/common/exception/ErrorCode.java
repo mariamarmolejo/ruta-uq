@@ -40,6 +40,7 @@ public enum ErrorCode {
     PAYMENT_NOT_FOUND("Payment record not found", HttpStatus.NOT_FOUND),
     PAYMENT_INVALID_STATUS("Cannot process payment in the current reservation status", HttpStatus.CONFLICT),
     MERCADO_PAGO_ERROR("Mercado Pago API returned an error", HttpStatus.BAD_GATEWAY),
+    GROQ_ERROR("Assistant service returned an error", HttpStatus.BAD_GATEWAY),
 
     // Refunds
     REFUND_NOT_FOUND("Refund not found", HttpStatus.NOT_FOUND),

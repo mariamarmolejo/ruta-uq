@@ -79,6 +79,11 @@ Parameters:
     Default: /rutauq/dev/google-client-id
     Description: SSM SecureString path for the Google OAuth2 Client ID.
 
+  GroqApiKeySsmPath:
+    Type: String
+    Default: /rutauq/dev/groq-api-key
+    Description: SSM SecureString path for the Groq API key.
+
   FrontendUrl:
     Type: String
     Default: https://d2n5vuayqdjez9.cloudfront.net
@@ -405,6 +410,10 @@ Resources:
               ValueFrom: !Sub
                 - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
                 - Path: !Ref GoogleClientIdSsmPath
+            - Name: GROQ_API_KEY
+              ValueFrom: !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${Path}'
+                - Path: !Ref GroqApiKeySsmPath
             - !If
               - MailEnabled
               - Name: SPRING_MAIL_PASSWORD

@@ -24,6 +24,7 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/**",
+            "/api/v1/chat",
             "/api/v1/health/**",
             "/api/v1/payments/webhook",
             "/actuator/health",          // ALB health check — must be unauthenticated
