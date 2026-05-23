@@ -104,7 +104,7 @@ Parameters:
 
   MailFrom:
     Type: String
-    Default: "noreply@rutauq.com"
+    Default: "studioflowia@gmail.com"
     Description: From address shown in outgoing emails.
 
   MailHost:

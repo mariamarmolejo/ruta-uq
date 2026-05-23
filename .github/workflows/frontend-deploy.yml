@@ -1,0 +1,118 @@
+name: Frontend — Build & Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'rutauq-frontend/**'
+      - 'infrastructure/cloudformation/templates/cdn.yml'
+      - 'infrastructure/cloudformation/parameters/dev/cdn.json'
+      - '.github/workflows/frontend-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev]
+
+env:
+  AWS_REGION: us-east-1
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+  CDN_STACK: rutauq-dev-cdn
+
+jobs:
+  lint-and-build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rutauq-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: rutauq-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build static export
+        env:
+          NEXT_PUBLIC_API_URL: https://api.rutauq.online/api/v1
+          NEXT_PUBLIC_MP_PUBLIC_KEY: ${{ secrets.MP_PUBLIC_KEY }}
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-out
+          path: rutauq-frontend/out/
+          retention-days: 1
+
+  deploy:
+    name: Deploy to S3 + CloudFront
+    needs: lint-and-build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-out
+          path: out/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve S3 bucket and CloudFront distribution
+        id: cdn
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name $CDN_STACK \
+            --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
+            --output text)
+          DIST_ID=$(aws cloudformation describe-stacks \
+            --stack-name $CDN_STACK \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
+            --output text)
+          echo "bucket=$BUCKET" >> "$GITHUB_OUTPUT"
+          echo "distribution-id=$DIST_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Sync hashed assets (long-lived cache)
+        env:
+          BUCKET: ${{ steps.cdn.outputs.bucket }}
+        run: |
+          aws s3 sync out/ s3://$BUCKET/ \
+            --exclude "*.html" \
+            --cache-control "public,max-age=31536000,immutable" \
+            --delete
+
+      - name: Sync HTML files (no cache)
+        env:
+          BUCKET: ${{ steps.cdn.outputs.bucket }}
+        run: |
+          aws s3 sync out/ s3://$BUCKET/ \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "public,max-age=0,must-revalidate" \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        env:
+          DIST_ID: ${{ steps.cdn.outputs.distribution-id }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id $DIST_ID \
+            --paths "/*"

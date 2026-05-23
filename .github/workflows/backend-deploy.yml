@@ -1,0 +1,136 @@
+name: Backend — Build & Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'rutaUQ-backend/**'
+      - 'infrastructure/cloudformation/templates/ecs.yml'
+      - 'infrastructure/cloudformation/parameters/dev/ecs.json'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev]
+
+env:
+  AWS_REGION: us-east-1
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+  ECR_STACK: rutauq-dev-ecr
+  ECS_CLUSTER: rutauq-dev
+  ECS_SERVICE: rutauq-dev-backend
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rutaUQ-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw test
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: rutaUQ-backend/target/surefire-reports/
+
+  build-and-push:
+    name: Build & Push Image
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+    defaults:
+      run:
+        working-directory: rutaUQ-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Build JAR
+        run: ./mvnw package -DskipTests -q
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve ECR repository URI
+        id: meta
+        run: |
+          REPO_URI=$(aws cloudformation describe-stacks \
+            --stack-name $ECR_STACK \
+            --query "Stacks[0].Outputs[?OutputKey=='BackendRepositoryUri'].OutputValue" \
+            --output text)
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "repo-uri=$REPO_URI" >> "$GITHUB_OUTPUT"
+          echo "tag=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push Docker image
+        env:
+          REPO_URI: ${{ steps.meta.outputs.repo-uri }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          docker build --platform linux/amd64 -t "$REPO_URI:$TAG" -t "$REPO_URI:latest" .
+          docker push "$REPO_URI:$TAG"
+          docker push "$REPO_URI:latest"
+
+  deploy:
+    name: Deploy to ECS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update ECS stack (BackendImageTag)
+        run: |
+          PARAMS=$(cat infrastructure/cloudformation/parameters/dev/ecs.json \
+            | jq --arg tag "${{ needs.build-and-push.outputs.image-tag }}" \
+              'map(if .ParameterKey == "BackendImageTag" then .ParameterValue = $tag else . end)')
+          aws cloudformation deploy \
+            --template-file infrastructure/cloudformation/templates/ecs.yml \
+            --stack-name rutauq-dev-ecs \
+            --parameter-overrides $(echo "$PARAMS" | jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"') \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Wait for ECS service to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE
