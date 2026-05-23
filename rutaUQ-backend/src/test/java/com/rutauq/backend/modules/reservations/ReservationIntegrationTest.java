@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -108,7 +109,8 @@ class ReservationIntegrationTest {
                 .content(objectMapper.writeValueAsString(Map.of(
                         "licenseNumber", "TEST-DRV-RES-001",
                         "licenseExpiry", "2030-12-31"
-                ))));
+                ))))
+                .andDo(print());
 
         // Register a vehicle (TRIP_SEATS capacity)
         MvcResult vehicleResult = mockMvc.perform(post("/api/v1/vehicles")
@@ -122,6 +124,7 @@ class ReservationIntegrationTest {
                                 "plate", "RES001",
                                 "seats", TRIP_SEATS
                         ))))
+                .andDo(print())
                 .andReturn();
         vehicleId = UUID.fromString(extract(vehicleResult, "$.data.id"));
 
@@ -141,6 +144,7 @@ class ReservationIntegrationTest {
                                 "pricePerSeat",   PRICE,
                                 "description",    "Integration test trip — will be cleaned up"
                         ))))
+                .andDo(print())
                 .andReturn();
         tripId = UUID.fromString(extract(tripResult, "$.data.id"));
     }
@@ -188,6 +192,7 @@ class ReservationIntegrationTest {
                 .andExpect(jsonPath("$.data.trip.origin").value("Armenia Test"))
                 .andExpect(jsonPath("$.data.trip.pricePerSeat").value(3500.00))
                 .andExpect(jsonPath("$.data.passenger.email").value(CLIENT1_EMAIL))
+                .andDo(print())
                 .andReturn();
 
         // Capture reservationId for use in subsequent tests
@@ -201,7 +206,8 @@ class ReservationIntegrationTest {
         mockMvc.perform(get("/api/v1/trips/" + tripId)
                         .header("Authorization", "Bearer " + client1Token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.availableSeats").value(0));
+                .andExpect(jsonPath("$.data.availableSeats").value(0))
+                .andDo(print());
     }
 
     @Test
@@ -217,7 +223,8 @@ class ReservationIntegrationTest {
                         ))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("RESERVATION_ALREADY_EXISTS"));
+                .andExpect(jsonPath("$.errorCode").value("RESERVATION_ALREADY_EXISTS"))
+                .andDo(print());
     }
 
     @Test
@@ -233,7 +240,8 @@ class ReservationIntegrationTest {
                         ))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("TRIP_NO_SEATS_AVAILABLE"));
+                .andExpect(jsonPath("$.errorCode").value("TRIP_NO_SEATS_AVAILABLE"))
+                .andDo(print());
     }
 
     @Test
@@ -247,7 +255,8 @@ class ReservationIntegrationTest {
                                 "tripId",        tripId.toString(),
                                 "seatsReserved", 1
                         ))))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andDo(print());
     }
 
     @Test
@@ -260,7 +269,8 @@ class ReservationIntegrationTest {
                                 "tripId",        tripId.toString(),
                                 "seatsReserved", 1
                         ))))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andDo(print());
     }
 
     @Test
@@ -275,7 +285,8 @@ class ReservationIntegrationTest {
                                 "seatsReserved", 0
                         ))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andDo(print());
     }
 
     @Test
@@ -288,7 +299,8 @@ class ReservationIntegrationTest {
                 .andExpect(jsonPath("$.data", hasSize(1)))
                 .andExpect(jsonPath("$.data[0].id").value(reservationId.toString()))
                 .andExpect(jsonPath("$.data[0].passenger.email").value(CLIENT1_EMAIL))
-                .andExpect(jsonPath("$.data[0].status").value("PENDING_PAYMENT"));
+                .andExpect(jsonPath("$.data[0].status").value("PENDING_PAYMENT"))
+                .andDo(print());
     }
 
     @Test
@@ -297,7 +309,8 @@ class ReservationIntegrationTest {
     void getTripReservations_byClient_returns403() throws Exception {
         mockMvc.perform(get("/api/v1/trips/" + tripId + "/reservations")
                         .header("Authorization", "Bearer " + client1Token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andDo(print());
     }
 
     @Test
@@ -310,7 +323,8 @@ class ReservationIntegrationTest {
                 .andExpect(jsonPath("$.data.id").value(reservationId.toString()))
                 .andExpect(jsonPath("$.data.status").value("PENDING_PAYMENT"))
                 .andExpect(jsonPath("$.data.seatsReserved").value(2))
-                .andExpect(jsonPath("$.data.passenger.email").value(CLIENT1_EMAIL));
+                .andExpect(jsonPath("$.data.passenger.email").value(CLIENT1_EMAIL))
+                .andDo(print());
     }
 
     @Test
@@ -320,7 +334,8 @@ class ReservationIntegrationTest {
         mockMvc.perform(get("/api/v1/reservations/" + reservationId)
                         .header("Authorization", "Bearer " + driverToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(reservationId.toString()));
+                .andExpect(jsonPath("$.data.id").value(reservationId.toString()))
+                .andDo(print());
     }
 
     @Test
@@ -330,7 +345,8 @@ class ReservationIntegrationTest {
         mockMvc.perform(get("/api/v1/reservations/" + reservationId)
                         .header("Authorization", "Bearer " + client2Token))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"))
+                .andDo(print());
     }
 
     @Test
@@ -343,7 +359,8 @@ class ReservationIntegrationTest {
                 .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))))
                 .andExpect(jsonPath("$.data[?(@.id == '" + reservationId + "')]").exists())
                 .andExpect(jsonPath("$.data[?(@.id == '" + reservationId + "')].status",
-                        hasItem("PENDING_PAYMENT")));
+                        hasItem("PENDING_PAYMENT")))
+                .andDo(print());
     }
 
     @Test
@@ -355,7 +372,8 @@ class ReservationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("CANCELLED"))
-                .andExpect(jsonPath("$.data.id").value(reservationId.toString()));
+                .andExpect(jsonPath("$.data.id").value(reservationId.toString()))
+                .andDo(print());
     }
 
     @Test
@@ -365,7 +383,8 @@ class ReservationIntegrationTest {
         mockMvc.perform(get("/api/v1/trips/" + tripId)
                         .header("Authorization", "Bearer " + client1Token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.availableSeats").value(TRIP_SEATS));
+                .andExpect(jsonPath("$.data.availableSeats").value(TRIP_SEATS))
+                .andDo(print());
     }
 
     @Test
@@ -376,7 +395,8 @@ class ReservationIntegrationTest {
                         .header("Authorization", "Bearer " + client1Token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("OPERATION_NOT_PERMITTED"));
+                .andExpect(jsonPath("$.errorCode").value("OPERATION_NOT_PERMITTED"))
+                .andDo(print());
     }
 
     // =========================================================================
@@ -399,7 +419,8 @@ class ReservationIntegrationTest {
                                 "lastName",  lastName,
                                 "role",      role
                         ))))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andDo(print());
 
         // Bypass email verification in tests — set flag directly via repository
         userRepository.findByEmail(email).ifPresent(u -> {
@@ -413,6 +434,7 @@ class ReservationIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "email", email, "password", PASSWORD
                         ))))
+                .andDo(print())
                 .andReturn();
         return extract(loginResult, "$.data.token");
     }
