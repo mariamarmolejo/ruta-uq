@@ -231,9 +231,9 @@ Resources:
         Fn::ImportValue: !Sub ${Project}-${Environment}-VpcId
       HealthCheckPath: /api/v1/health
       HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckTimeoutSeconds: 10
       HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
+      UnhealthyThresholdCount: 5
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: '30'         # Faster deploys — tasks drain in 30s instead of 300s
@@ -461,7 +461,7 @@ Resources:
         MinimumHealthyPercent: 50
         MaximumPercent: 200
       # Wait for tasks to pass health checks before marking deployment complete
-      HealthCheckGracePeriodSeconds: 60
+      HealthCheckGracePeriodSeconds: 120
 
 # =============================================================================
 # Outputs  (exported for cross-stack imports)
