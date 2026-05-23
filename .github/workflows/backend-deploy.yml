@@ -41,7 +41,7 @@ jobs:
           cache: maven
 
       - name: Run tests
-        run: ./mvnw test
+        run: mvn test
 
       - name: Upload test report
         if: failure()
@@ -69,7 +69,7 @@ jobs:
           cache: maven
 
       - name: Build JAR
-        run: ./mvnw package -DskipTests -q
+        run: mvn package -DskipTests -q
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
