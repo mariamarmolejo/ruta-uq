@@ -29,7 +29,7 @@ public class Rating {
     @JoinColumn(name = "rater_id", nullable = false)
     private User rater;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "smallint")
     private int stars;
 
     @Column(length = 500)
