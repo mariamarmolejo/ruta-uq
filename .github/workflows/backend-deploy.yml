@@ -63,6 +63,7 @@ jobs:
         with:
           name: surefire-reports
           path: rutaUQ-backend/target/surefire-reports/
+          retention-days: 7
 
   build-and-push:
     name: Build & Push Image
