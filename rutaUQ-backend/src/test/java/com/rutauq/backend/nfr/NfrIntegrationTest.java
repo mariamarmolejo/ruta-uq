@@ -277,7 +277,7 @@ class NfrIntegrationTest {
         UUID resId = UUID.fromString(extract(result, "$.data.id"));
 
         // Verify the stored reservation matches in DB too
-        reservationRepository.findById(resId).ifPresentOrElse(reservation -> {
+        reservationRepository.findByIdWithTrip(resId).ifPresentOrElse(reservation -> {
             BigDecimal total = reservation.getTrip().getPricePerSeat()
                     .multiply(BigDecimal.valueOf(reservation.getSeatsReserved()));
             assertThat(total).isEqualByComparingTo(new BigDecimal("10000"));
@@ -311,11 +311,13 @@ class NfrIntegrationTest {
                         .header("Authorization", "Bearer " + clientToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "reservationId",   UUID.randomUUID().toString(),
-                                "cardToken",       "fake-token",
-                                "paymentMethodId", "visa",
-                                "paymentType",     "credit_card",
-                                "installments",    1
+                                "reservationId",       UUID.randomUUID().toString(),
+                                "cardToken",           "fake-token",
+                                "paymentMethodId",     "visa",
+                                "paymentType",         "credit_card",
+                                "installments",        1,
+                                "identificationType",  "CC",
+                                "identificationNumber","123456789"
                         ))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("RESERVATION_NOT_FOUND"));

@@ -31,6 +31,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // Used to cross-check available seats
     long countByTripIdAndStatusIn(UUID tripId, List<ReservationStatus> statuses);
 
+    @Query("SELECT r FROM Reservation r JOIN FETCH r.trip WHERE r.id = :id")
+    Optional<Reservation> findByIdWithTrip(@Param("id") UUID id);
+
     @Modifying
     @Query("UPDATE Reservation r SET r.status = :to WHERE r.trip.id = :tripId AND r.status = :from")
     void updateStatusByTripId(@Param("tripId") UUID tripId,
