@@ -26,10 +26,10 @@ const API_URL  =
     ? "https://api.rutauq.online/api/v1"
     : `${BASE_URL.replace(":3000", ":8080")}/api/v1`);
 
-export const E2E_DRIVER_EMAIL    = process.env.E2E_DRIVER_EMAIL    ?? "e2e.driver@rutauq.test";
-export const E2E_CLIENT_EMAIL    = process.env.E2E_CLIENT_EMAIL    ?? "e2e.client@rutauq.test";
-export const E2E_DRIVER_PASSWORD = process.env.E2E_DRIVER_PASSWORD ?? "E2eTest123!";
-export const E2E_CLIENT_PASSWORD = process.env.E2E_CLIENT_PASSWORD ?? "E2eTest123!";
+export const E2E_DRIVER_EMAIL    = process.env.E2E_DRIVER_EMAIL    || "e2e.driver@rutauq.test";
+export const E2E_CLIENT_EMAIL    = process.env.E2E_CLIENT_EMAIL    || "e2e.client@rutauq.test";
+export const E2E_DRIVER_PASSWORD = process.env.E2E_DRIVER_PASSWORD || "E2eTest123!";
+export const E2E_CLIENT_PASSWORD = process.env.E2E_CLIENT_PASSWORD || "E2eTest123!";
 
 async function registerAccount(
   email: string, password: string, role: "DRIVER" | "CLIENT",

@@ -24,7 +24,10 @@ async function loginAsClient(
   await page.getByLabel(/correo|email/i).fill(E2E_CLIENT_EMAIL);
   await page.getByLabel(/contraseña|password/i).fill(E2E_CLIENT_PASSWORD);
   await page.getByRole("button", { name: /iniciar|ingresar|login|sign in/i }).click();
-  await page.waitForURL(/\/trips/, { timeout: 15_000 });
+  await page.waitForURL(/\/trips/, { timeout: 15_000 }).catch(async () => {
+    const error = await page.locator("[class*='red'], [class*='error'], [role='alert']").first().textContent().catch(() => "(no error element found)");
+    throw new Error(`Login redirect did not happen for ${E2E_CLIENT_EMAIL}. Current URL: ${page.url()}. Page error: ${error}`);
+  });
 }
 
 test.describe("E2E-03 — Reservation and Payment Flow", () => {

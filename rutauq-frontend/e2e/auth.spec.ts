@@ -23,7 +23,10 @@ async function loginAs(page: Parameters<typeof test>[1] extends (...args: infer 
   await page.getByLabel(/correo|email/i).fill(email);
   await page.getByLabel(/contraseña|password/i).fill(password);
   await page.getByRole("button", { name: /iniciar|ingresar|login|sign in/i }).click();
-  await page.waitForURL(/\/(trips|driver\/trips)/, { timeout: 15_000 });
+  await page.waitForURL(/\/(trips|driver\/trips)/, { timeout: 15_000 }).catch(async () => {
+    const error = await page.locator("[class*='red'], [class*='error'], [role='alert']").first().textContent().catch(() => "(no error element found)");
+    throw new Error(`Login redirect did not happen for ${email}. Current URL: ${page.url()}. Page error: ${error}`);
+  });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -51,14 +54,14 @@ test.describe("E2E-01 — Authentication", () => {
     await page.getByLabel(/correo|email/i).fill(E2E_CLIENT_EMAIL);
     await page.getByLabel(/contraseña|password/i).fill("WrongPassword999!");
     await page.getByRole("button", { name: /iniciar|ingresar|login|sign in/i }).click();
-    await expect(page.locator("text=/credenciales|credentials|incorrectas|incorrect/i"))
+    await expect(page.locator("text=/credenciales|credentials|incorrectas|incorrect|invalid|contraseña incorrecta/i"))
       .toBeVisible({ timeout: 10_000 });
   });
 
   test("Forgot password page renders email input", async ({ page }) => {
     await page.goto("/forgot-password");
     await expect(page.getByLabel(/correo|email/i)).toBeVisible();
-    await expect(page.getByRole("button")).toBeEnabled();
+    await expect(page.getByRole("button", { name: /enviar|send|restablecer|reset/i })).toBeEnabled();
   });
 
   test("NFR-06 — Login page renders correctly on mobile viewport", async ({ page }) => {
