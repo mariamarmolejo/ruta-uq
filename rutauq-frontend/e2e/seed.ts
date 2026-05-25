@@ -20,7 +20,11 @@
  */
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
-const API_URL  = process.env.NEXT_PUBLIC_API_URL ?? `${BASE_URL.replace(":3000", ":8080")}/api/v1`;
+const API_URL  =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (BASE_URL.includes("www.rutauq.online")
+    ? "https://api.rutauq.online/api/v1"
+    : `${BASE_URL.replace(":3000", ":8080")}/api/v1`);
 
 export const E2E_DRIVER_EMAIL    = process.env.E2E_DRIVER_EMAIL    ?? "e2e.driver@rutauq.test";
 export const E2E_CLIENT_EMAIL    = process.env.E2E_CLIENT_EMAIL    ?? "e2e.client@rutauq.test";
@@ -55,4 +59,6 @@ async function main() {
   console.log("\nDone. Remember to verify accounts in the DB before running E2E tests.\n");
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch(console.error);
+}
